@@ -875,8 +875,10 @@ std::string HelpExampleCli(const std::string& methodname, const std::string& arg
         return "> komodo-cli " + methodname + " " + args + "\n";
     } else if ((strncmp(ASSETCHAINS_SYMBOL, "HUSH3", 5) == 0) ) {
         return "> hush-cli " + methodname + " " + args + "\n";
+    } else if (ASSETCHAINS_SYMBOL == "TOKEL") {
+        return "> tokel-cli " + methodname + " " + args + "\n";
     } else {
-        return "> komodo-cli -ac_name=" + strprintf("%s", ASSETCHAINS_SYMBOL) + " " + methodname + " " + args + "\n";
+        return "> tokel-cli -ac_name=" + strprintf("%s", ASSETCHAINS_SYMBOL) + " " + methodname + " " + args + "\n";
     }
 }
 

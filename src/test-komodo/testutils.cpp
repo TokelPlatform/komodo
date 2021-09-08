@@ -33,9 +33,6 @@ CKey notaryKey;
  */
 int64_t nMockTime;
 
-extern uint32_t USE_EXTERNAL_PUBKEY;
-extern std::string NOTARY_PUBKEY;
-
 void setupChain()
 {
     SelectParams(CBaseChainParams::REGTEST);

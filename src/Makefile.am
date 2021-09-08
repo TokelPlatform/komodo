@@ -124,11 +124,11 @@ noinst_PROGRAMS =
 TESTS =
 
 #if BUILD_BITCOIND
-  bin_PROGRAMS += komodod
+  bin_PROGRAMS += tokeld
 #endif
 
 if BUILD_BITCOIN_UTILS
-  bin_PROGRAMS += komodo-cli komodo-tx
+  bin_PROGRAMS += tokel-cli tokel-tx
 endif
 if ENABLE_WALLET
   bin_PROGRAMS += wallet-utility
@@ -553,16 +553,16 @@ nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
 #
 
 # bitcoind binary #
-komodod_SOURCES = bitcoind.cpp
-komodod_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-komodod_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-komodod_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+tokeld_SOURCES = bitcoind.cpp
+tokeld_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+tokeld_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+tokeld_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-komodod_SOURCES += bitcoind-res.rc
+tokeld_SOURCES += bitcoind-res.rc
 endif
 
-komodod_LDADD = \
+tokeld_LDADD = \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_COMMON) \
   $(LIBUNIVALUE) \
@@ -580,10 +580,10 @@ komodod_LDADD = \
   $(LIBCRYPTOCONDITIONS)
 
 if ENABLE_WALLET
-komodod_LDADD += $(LIBBITCOIN_WALLET)
+tokeld_LDADD += $(LIBBITCOIN_WALLET)
 endif
 
-komodod_LDADD += \
+tokeld_LDADD += \
   $(BOOST_LIBS) \
   $(BDB_LIBS) \
   $(SSL_LIBS) \
@@ -597,24 +597,24 @@ komodod_LDADD += \
   $(LIBVERUS_PORTABLE_CRYPTO) \
   $(LIBZCASH_LIBS)
 
-komodod_LDADD += $(LIBDYNCUSTOMCONSENSUS) $(LIBSECP256K1)
+tokeld_LDADD += $(LIBDYNCUSTOMCONSENSUS) $(LIBSECP256K1)
 
 if ENABLE_PROTON
-komodod_LDADD += $(LIBBITCOIN_PROTON) $(PROTON_LIBS)
+tokeld_LDADD += $(LIBBITCOIN_PROTON) $(PROTON_LIBS)
 endif
 
 # [+] Decker: use static linking for libstdc++.6.dylib, libgomp.1.dylib, libgcc_s.1.dylib
 if TARGET_DARWIN
-komodod_LDFLAGS += -static-libgcc
+tokeld_LDFLAGS += -static-libgcc
 endif
 
 # bitcoin-cli binary #
-komodo_cli_SOURCES = bitcoin-cli.cpp
-komodo_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
-komodo_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-komodo_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+tokel_cli_SOURCES = bitcoin-cli.cpp
+tokel_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
+tokel_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+tokel_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 if TARGET_DARWIN
-komodo_cli_LDFLAGS += -static-libgcc
+tokel_cli_LDFLAGS += -static-libgcc
 endif
 
 # wallet-utility binary #
@@ -626,10 +626,10 @@ wallet_utility_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 endif
 
 if TARGET_WINDOWS
-komodo_cli_SOURCES += bitcoin-cli-res.rc
+tokel_cli_SOURCES += bitcoin-cli-res.rc
 endif
 
-komodo_cli_LDADD = \
+tokel_cli_LDADD = \
 	$(LIBBITCOIN_CLI) \
 	$(LIBUNIVALUE) \
 	$(LIBBITCOIN_UTIL) \
@@ -662,17 +662,17 @@ wallet_utility_LDADD = \
 endif
 
 # zcash-tx binary #
-komodo_tx_SOURCES = komodo-tx.cpp
-komodo_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-komodo_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-komodo_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+tokel_tx_SOURCES = komodo-tx.cpp
+tokel_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+tokel_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+tokel_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-komodo_tx_SOURCES += bitcoin-tx-res.rc
+tokel_tx_SOURCES += bitcoin-tx-res.rc
 endif
 
 # FIXME: Is libzcash needed for zcash_tx?
-komodo_tx_LDADD = \
+tokel_tx_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
@@ -685,7 +685,7 @@ komodo_tx_LDADD = \
   $(LIBZCASH_LIBS) \
   $(LIBCRYPTOCONDITIONS)
 
-komodo_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
+tokel_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 #
 
 # zcash protocol primitives #

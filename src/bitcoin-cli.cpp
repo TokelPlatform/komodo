@@ -31,6 +31,9 @@
 #include <event2/buffer.h>
 #include <event2/keyvalq_struct.h>
 #include "support/events.h"
+
+#include "tokel-params.h"
+
 uint16_t BITCOIND_RPCPORT = 7771;
 char ASSETCHAINS_SYMBOL[65];
 
@@ -96,17 +99,17 @@ static int AppInitRPC(int argc, char* argv[])
     //
     ParseParameters(argc, argv);
     std:string name;
-    name = GetArg("-ac_name","");
+	name = GetArg("-ac_name", TOKEL_AC_NAME);
     if ( !name.empty() )
         strncpy(ASSETCHAINS_SYMBOL,name.c_str(),sizeof(ASSETCHAINS_SYMBOL)-1);
 
     if (argc<2 || mapArgs.count("-?") || mapArgs.count("-h") || mapArgs.count("-help") || mapArgs.count("-version")) {
-        std::string strUsage = _("Komodo RPC client version") + " " + FormatFullVersion() + "\n" + PrivacyInfo();
+        std::string strUsage = _("Tokel Komodo RPC client version") + " " + FormatFullVersion() + "\n" + PrivacyInfo();
         if (!mapArgs.count("-version")) {
             strUsage += "\n" + _("Usage:") + "\n" +
-                  "  komodo-cli [options] <command> [params]  " + _("Send command to Komodo") + "\n" +
-                  "  komodo-cli [options] help                " + _("List commands") + "\n" +
-                  "  komodo-cli [options] help <command>      " + _("Get help for a command") + "\n";
+                  "  tokel-cli [options] <command> [params]  " + _("Send command to Tokeld") + "\n" +
+                  "  tokel-cli [options] help                " + _("List commands") + "\n" +
+                  "  tokel-cli [options] help <command>      " + _("Get help for a command") + "\n";
 
             strUsage += "\n" + HelpMessageCli();
         } else {

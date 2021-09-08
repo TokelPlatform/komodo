@@ -56,6 +56,8 @@
 
 #include <boost/unordered_map.hpp>
 
+#include "tokel-params.h"
+
 class CBlockIndex;
 class CBlockTreeDB;
 class CBloomFilter;
@@ -122,8 +124,7 @@ static const unsigned int MAX_REJECT_MESSAGE_LENGTH = 111;
 static const int64_t DEFAULT_MAX_TIP_AGE = 24 * 60 * 60;
 
 /** Default NSPV support enabled */
-#define DEFAULT_NSPV_TOKEL true
-static const bool DEFAULT_NSPV_PROCESSING = DEFAULT_NSPV_TOKEL;
+static const bool DEFAULT_NSPV_PROCESSING = TOKEL_DEFAULT_NSPV;
 
 //static const bool DEFAULT_ADDRESSINDEX = false;
 //static const bool DEFAULT_SPENTINDEX = false;
@@ -166,6 +167,7 @@ extern bool fTxIndex;
 extern bool fIsBareMultisigStd;
 extern bool fCheckBlockIndex;
 extern bool fCheckpointsEnabled;
+extern bool fAddressIndex, fSpentIndex, fUnspentCCIndex;
 // TODO: remove this flag by structuring our code such that
 // it is unneeded for testing
 extern bool fCoinbaseEnforcedProtectionEnabled;

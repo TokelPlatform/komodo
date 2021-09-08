@@ -6,8 +6,8 @@ komodo_test_cc_SOURCES = \
 	test-komodo-cc/test-main.cpp \
 	test-komodo-cc/test-assets.cpp
 
-komodo_test_cc_CPPFLAGS = $(komodod_CPPFLAGS)
+komodo_test_cc_CPPFLAGS = $(tokeld_CPPFLAGS)
 
-komodo_test_cc_LDADD = -lgtest $(komodod_LDADD)
+komodo_test_cc_LDADD = -lgtest $(tokeld_LDADD)
 
 komodo_test_cc_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) -static

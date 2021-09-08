@@ -33,6 +33,8 @@
 #include "ui_interface.h"
 #include "crypto/common.h"
 
+#include "tokel-params.h"
+
 #ifdef _WIN32
 #include <string.h>
 #else
@@ -1399,7 +1401,9 @@ void ThreadOpenConnections()
             static bool done = false;
             if (!done) {
                 // skip DNS seeds for staked chains.
-                if ( is_STAKED(ASSETCHAINS_SYMBOL) == 0 ) {
+                if (is_STAKED(ASSETCHAINS_SYMBOL) == 0 && 
+                    IS_TOKEL_MAINCHAIN())   // seed nodes are for TOKEL main chain
+                {
                     //LogPrintf("Adding fixed seed nodes as DNS doesn't seem to be available.\n");
                     LogPrintf("Adding fixed seed nodes.\n");
                     addrman.Add(convertSeed6(Params().FixedSeeds()), CNetAddr("127.0.0.1"));

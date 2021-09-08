@@ -19,6 +19,8 @@
 #include "cc/CCinclude.h"
 #include <string.h>
 
+#include "tokel-params.h"
+
 #ifdef _WIN32
 #include <sodium.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -1746,7 +1748,7 @@ void komodo_args(char *argv0)
         fprintf(stderr, "Cannot be STAKED and KMD notary at the same time!\n");
         StartShutdown();
     }
-	name = GetArg("-ac_name","");
+	name = GetArg("-ac_name", TOKEL_AC_NAME);
     if ( argv0 != 0 )
     {
         len = (int32_t)strlen(argv0);
@@ -1764,7 +1766,7 @@ void komodo_args(char *argv0)
     KOMODO_STOPAT = GetArg("-stopat",0);
     MAX_REORG_LENGTH = GetArg("-maxreorg",MAX_REORG_LENGTH);
     WITNESS_CACHE_SIZE = MAX_REORG_LENGTH+10;
-    ASSETCHAINS_CC = GetArg("-ac_cc",0);
+    ASSETCHAINS_CC = GetArg("-ac_cc", TOKEL_AC_CC);
     KOMODO_CCACTIVATE = GetArg("-ac_ccactivate",0);
     ASSETCHAINS_BLOCKTIME = GetArg("-ac_blocktime",60);
     ASSETCHAINS_PUBLIC = GetArg("-ac_public",0);
@@ -1829,7 +1831,7 @@ void komodo_args(char *argv0)
             printf("ASSETCHAINS_ALGO, %s not supported. using equihash\n", selectedAlgo.c_str());
         }
 
-        ASSETCHAINS_LASTERA = GetArg("-ac_eras", 1);
+        ASSETCHAINS_LASTERA = GetArg("-ac_eras", TOKEL_AC_ERAS);
         if ( ASSETCHAINS_LASTERA < 1 || ASSETCHAINS_LASTERA > ASSETCHAINS_MAX_ERAS )
         {
             ASSETCHAINS_LASTERA = 1;
@@ -1847,10 +1849,10 @@ void komodo_args(char *argv0)
             ASSETCHAINS_TIMEUNLOCKFROM = ASSETCHAINS_TIMEUNLOCKTO = 0;
         }
 
-        Split(GetArg("-ac_end",""), sizeof(ASSETCHAINS_ENDSUBSIDY)/sizeof(*ASSETCHAINS_ENDSUBSIDY),  ASSETCHAINS_ENDSUBSIDY, 0);
-        Split(GetArg("-ac_reward",""), sizeof(ASSETCHAINS_REWARD)/sizeof(*ASSETCHAINS_REWARD),  ASSETCHAINS_REWARD, 0);
-        Split(GetArg("-ac_halving",""), sizeof(ASSETCHAINS_HALVING)/sizeof(*ASSETCHAINS_HALVING),  ASSETCHAINS_HALVING, 0);
-        Split(GetArg("-ac_decay",""), sizeof(ASSETCHAINS_DECAY)/sizeof(*ASSETCHAINS_DECAY),  ASSETCHAINS_DECAY, 0);
+        Split(GetArg("-ac_end", TOKEL_AC_END), sizeof(ASSETCHAINS_ENDSUBSIDY)/sizeof(*ASSETCHAINS_ENDSUBSIDY),  ASSETCHAINS_ENDSUBSIDY, 0);
+        Split(GetArg("-ac_reward", TOKEL_AC_REWARD), sizeof(ASSETCHAINS_REWARD)/sizeof(*ASSETCHAINS_REWARD),  ASSETCHAINS_REWARD, 0);
+        Split(GetArg("-ac_halving", TOKEL_AC_HALVING), sizeof(ASSETCHAINS_HALVING)/sizeof(*ASSETCHAINS_HALVING),  ASSETCHAINS_HALVING, 0);
+        Split(GetArg("-ac_decay", TOKEL_AC_DECAY), sizeof(ASSETCHAINS_DECAY)/sizeof(*ASSETCHAINS_DECAY),  ASSETCHAINS_DECAY, 0);
         Split(GetArg("-ac_notarypay",""), sizeof(ASSETCHAINS_NOTARY_PAY)/sizeof(*ASSETCHAINS_NOTARY_PAY),  ASSETCHAINS_NOTARY_PAY, 0);
 
         for ( int i = 0; i < ASSETCHAINS_MAX_ERAS; i++ )
@@ -1871,7 +1873,7 @@ void komodo_args(char *argv0)
         ASSETCHAINS_TXPOW = GetArg("-ac_txpow",0) & 3;
         ASSETCHAINS_FOUNDERS = GetArg("-ac_founders",0);// & 1;
 		ASSETCHAINS_FOUNDERS_REWARD = GetArg("-ac_founders_reward",0);
-        ASSETCHAINS_SUPPLY = GetArg("-ac_supply",10);
+        ASSETCHAINS_SUPPLY = GetArg("-ac_supply", TOKEL_AC_SUPPLY);
         if ( ASSETCHAINS_SUPPLY > (uint64_t)90*1000*1000000 )
         {
             fprintf(stderr,"-ac_supply must be less than 90 billion\n");
@@ -1885,8 +1887,8 @@ void komodo_args(char *argv0)
         ASSETCHAINS_BEAMPORT = GetArg("-ac_beam",0);
         ASSETCHAINS_CODAPORT = GetArg("-ac_coda",0);
         ASSETCHAINS_CBOPRET = GetArg("-ac_cbopret",0);
-        ASSETCHAINS_CBMATURITY = GetArg("-ac_cbmaturity",0);
-        ASSETCHAINS_ADAPTIVEPOW = GetArg("-ac_adaptivepow",0);
+        ASSETCHAINS_CBMATURITY = GetArg("-ac_cbmaturity", TOKEL_AC_CBMATURITY);
+        ASSETCHAINS_ADAPTIVEPOW = GetArg("-ac_adaptivepow", TOKEL_AC_ADAPTIVEPOW);
         //fprintf(stderr,"ASSETCHAINS_CBOPRET.%llx\n",(long long)ASSETCHAINS_CBOPRET);
         if ( ASSETCHAINS_CBOPRET != 0 )
         {
@@ -1921,7 +1923,7 @@ void komodo_args(char *argv0)
         {
             uint8_t prevCCi = 0;
             ASSETCHAINS_CCLIB = GetArg("-ac_cclib","");
-            Split(GetArg("-ac_ccenable",""), sizeof(ccenables)/sizeof(*ccenables),  ccenables, 0);
+            Split(GetArg("-ac_ccenable", TOKEL_AC_CCENABLE), sizeof(ccenables)/sizeof(*ccenables),  ccenables, 0);
             for (i=nonz=0; i<0x100; i++)
             {
                 if ( ccenables[i] != prevCCi && ccenables[i] != 0 )

@@ -6903,18 +6903,18 @@ bool InitBlockIndex() {
         fTxIndex = GetBoolArg("-txindex", true);
         pblocktree->WriteFlag("txindex", fTxIndex);
         // Use the provided setting for -addressindex in the new database
-        fAddressIndex = GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
+        fAddressIndex = GetBoolArg("-addressindex", TOKEL_DEFAULT_ADDRESSINDEX);
         pblocktree->WriteFlag("addressindex", fAddressIndex);
         
         // Use the provided setting for -timestampindex in the new database
         fTimestampIndex = GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
         pblocktree->WriteFlag("timestampindex", fTimestampIndex);
         
-        fSpentIndex = GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
+        fSpentIndex = GetBoolArg("-spentindex", TOKEL_DEFAULT_SPENTINDEX);
         pblocktree->WriteFlag("spentindex", fSpentIndex);
         fprintf(stderr,"fAddressIndex.%d/%d fSpentIndex.%d/%d\n",fAddressIndex,DEFAULT_ADDRESSINDEX,fSpentIndex,DEFAULT_SPENTINDEX);
 
-        fUnspentCCIndex = GetBoolArg("-unspentccindex", false);
+        fUnspentCCIndex = GetBoolArg("-unspentccindex", TOKEL_DEFAULT_UNSPENTCCINDEX);
         pblocktree->WriteFlag("unspentccindex", fUnspentCCIndex);
         fprintf(stderr, "fUnspentCCIndex.%d\n", fUnspentCCIndex);
 

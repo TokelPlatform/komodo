@@ -1629,7 +1629,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     nTotalCache = std::min(nTotalCache, nMaxDbCache << 20); // total cache cannot be greated than nMaxDbcache
     int64_t nBlockTreeDBCache = nTotalCache / 8;
 
-    if (GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) || GetBoolArg("-spentindex", DEFAULT_SPENTINDEX)) {
+    if (GetBoolArg("-addressindex", TOKEL_DEFAULT_ADDRESSINDEX) || GetBoolArg("-spentindex", TOKEL_DEFAULT_SPENTINDEX)) {
         // enable 3/4 of the cache if addressindex and/or spentindex is enabled
         nBlockTreeDBCache = nTotalCache * 3 / 4;
     } else {
@@ -1651,7 +1651,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     {
         bool checkval, fAddressIndex, fSpentIndex, fUnspentCCIndexTmp;
         pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex, dbCompression, dbMaxOpenFiles);
-        fAddressIndex = GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
+        fAddressIndex = GetBoolArg("-addressindex", TOKEL_DEFAULT_ADDRESSINDEX);
         checkval = false;  // need to reinit checkval otherwise it might be undefined if ReadFlag returns false
         pblocktree->ReadFlag("addressindex", checkval);
         if ( checkval != fAddressIndex && fAddressIndex != 0 )
@@ -1660,7 +1660,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
             fprintf(stderr,"set addressindex, will reindex. could take a while.\n");
             fReindex = true;
         }
-        fSpentIndex = GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
+        fSpentIndex = GetBoolArg("-spentindex", TOKEL_DEFAULT_SPENTINDEX);
         checkval = false;  
         pblocktree->ReadFlag("spentindex", checkval);
         if ( checkval != fSpentIndex && fSpentIndex != 0 )
@@ -1670,7 +1670,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
             fReindex = true;
         }
 
-        fUnspentCCIndexTmp = GetBoolArg("-unspentccindex", false);
+        fUnspentCCIndexTmp = GetBoolArg("-unspentccindex", TOKEL_DEFAULT_UNSPENTCCINDEX);
         checkval = false;  
         pblocktree->ReadFlag("unspentccindex", checkval);
         if ( checkval != fUnspentCCIndexTmp && fUnspentCCIndexTmp != 0 )
@@ -2010,9 +2010,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
     if (KOMODO_NSPV_FULLNODE)
     {
-        if ( GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) != 0 )
+        if ( GetBoolArg("-addressindex", TOKEL_DEFAULT_ADDRESSINDEX) != 0 )
             nLocalServices |= NODE_ADDRINDEX;
-        if ( GetBoolArg("-spentindex", DEFAULT_SPENTINDEX) != 0 )
+        if ( GetBoolArg("-spentindex", TOKEL_DEFAULT_SPENTINDEX) != 0 )
             nLocalServices |= NODE_SPENTINDEX;
     }
     // ********************************************************* Step 10: import blocks
@@ -2102,7 +2102,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     threadGroup.create_thread(boost::bind(ThreadSendAlert));
 
     if (KOMODO_NSPV_FULLNODE)
-        LogPrintf("nLocalServices %llx %d, %d\n", (long long)nLocalServices, GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX), GetBoolArg("-spentindex", DEFAULT_SPENTINDEX));
+        LogPrintf("nLocalServices %llx %d, %d\n", (long long)nLocalServices, GetBoolArg("-addressindex", TOKEL_DEFAULT_ADDRESSINDEX), GetBoolArg("-spentindex", TOKEL_DEFAULT_SPENTINDEX));
 
     return !fRequestShutdown;
 }

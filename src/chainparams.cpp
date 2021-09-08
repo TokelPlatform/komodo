@@ -182,8 +182,9 @@ public:
         assert(genesis.hashMerkleRoot == uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
         vFixedSeeds.clear();
         vSeeds.clear();
-        vSeeds.push_back(CDNSSeedData("komodoseeds.com", "kmd.komodoseeds.com")); // Static contolled seeds list (Kolo)
-        vSeeds.push_back(CDNSSeedData("komodoseeds.com", "dynamic.komodoseeds.com")); // Active seeds crawler (Kolo)
+        // no dns seeds for tokel yet:
+        // vSeeds.push_back(CDNSSeedData("komodoseeds.com", "kmd.komodoseeds.com")); // Static contolled seeds list (Kolo)
+        // vSeeds.push_back(CDNSSeedData("komodoseeds.com", "dynamic.komodoseeds.com")); // Active seeds crawler (Kolo)
         // TODO: we need more seed crawlers from other community members
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,60);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,85);
@@ -202,7 +203,7 @@ public:
         bech32HRPs[SAPLING_INCOMING_VIEWING_KEY] = "zivks";
         bech32HRPs[SAPLING_EXTENDED_SPEND_KEY]   = "secret-extended-key-main";
 
-        vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_main, pnSeed6_main + ARRAYLEN(pnSeed6_main));
+        vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_tokel_main, pnSeed6_tokel_main + ARRAYLEN(pnSeed6_tokel_main));
 
         fMiningRequiresPeers = true;
         fDefaultConsistencyChecks = false;

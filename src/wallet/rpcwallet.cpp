@@ -5616,10 +5616,10 @@ int32_t ensure_CCrequirements(uint8_t evalcode)
     if (NOTARY_PUBKEY33[0] == 0) {
         fprintf(stderr, "no -pubkey set\n");
         return (-1);
-    } else if (GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) == 0) {
+    } else if (!fAddressIndex) {
         fprintf(stderr, "no -addressindex\n");
         return (-1);
-    } else if (GetBoolArg("-spentindex", DEFAULT_SPENTINDEX) == 0) {
+    } else if (!fSpentIndex) {
         fprintf(stderr, "no -spentindex\n");
         return (-1);
     } else

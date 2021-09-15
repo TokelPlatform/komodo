@@ -833,6 +833,10 @@ customd_LDADD = \
   $(LIBSECP256K1) \
   $(LIBCRYPTOCONDITIONS)
 
+if ENABLE_WALLET
+customd_LDADD += $(LIBBITCOIN_WALLET)
+endif
+
 customd_LDADD += \
   $(BOOST_LIBS) \
   $(BDB_LIBS) \
@@ -853,13 +857,9 @@ if ENABLE_PROTON
 customd_LDADD += $(LIBBITCOIN_PROTON) $(PROTON_LIBS)
 endif
 
-if ENABLE_WALLET
-customd_LDADD += $(LIBBITCOIN_WALLET)
-endif
-
 customd_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(customd_CXXFLAGS) \
-	$(CXXFLAGS) $(customd_LDFLAGS) $(LDFLAGS) -o $(CUSTOM_BIN_NAME)d
+	$(CXXFLAGS) $(customd_LDFLAGS) $(LDFLAGS) -o $(CUSTOM_BIN_NAME)d$(EXEEXT)
 
 
 bin_PROGRAMS += custom-cli
@@ -873,6 +873,6 @@ custom_cli_LDADD = $(komodo_cli_LDADD)
 
 custom_cli_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(custom_cli_CXXFLAGS) \
-	$(CXXFLAGS) $(custom_cli_LDFLAGS) $(LDFLAGS) -o $(CUSTOM_BIN_NAME)-cli
+	$(CXXFLAGS) $(custom_cli_LDFLAGS) $(LDFLAGS) -o $(CUSTOM_BIN_NAME)-cli$(EXEEXT)
 
 endif

@@ -146,11 +146,12 @@ struct NSPV_ntzsresp
 
 struct NSPV_inforesp
 {
-    struct NSPV_ntz notarization;
-    uint256 blockhash;
-    int32_t height,hdrheight;
-    struct NSPV_equihdr H;
-    uint32_t version;
+    struct NSPV_ntz notarization; // last notarisation
+    uint256 blockhash;  // chain tip blockhash
+    int32_t height;     // chain tip height
+    int32_t hdrheight;  // requested block height (it will be the tip height if requested height is 0)
+    struct NSPV_equihdr H;  // requested block header (it will be the tip if requested height is 0)
+    uint32_t version;       // NSPV protocol version
 };
 
 struct NSPV_txproof

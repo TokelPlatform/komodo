@@ -5,12 +5,14 @@ import os
 import time
 import json
 from slickrpc.exc import RpcException
+import configparser
 
 # test creates fungible and non-fungible tokens
 # performs transfers and multiple transfers
 # then runs assets cc ask/bids tests
 
 header = "komodo assets cc tokenask/bid v2 test\n"
+tui_config_name = './tui_assets_orders.ini'
 
 def get_result_error(r):
     if isinstance(r, dict) :
@@ -44,18 +46,23 @@ def check_txid(txid) :
             return True
     return False
 
-def run_tokens_create(rpc):
+def run_tokens_create():
 
     # set your own two node params
     # DIMXY20 
-    rpc1 = rpclib.rpc_connect("user3088995989", "pass53c05895f37aa1eda9b0de63944275668e1956abb8c38f186132262fe53ae9be7c", 14723)
-    rpc2 = rpclib.rpc_connect("user2898668153", "passe99167496d2bbe43876e60430d52eb37b547fa1085b741a15776454eb126d9a603", 15723)
-    rpc3 = rpclib.rpc_connect("user972794450", "passe7eb16f5c015a53463cc5f27a004854cb76f4ec5c9aece177f01d8b3d13119e445", 16723)
+    # rpc1 = rpclib.rpc_connect("user3088995989", "pass53c05895f37aa1eda9b0de63944275668e1956abb8c38f186132262fe53ae9be7c", 14723)
+    # rpc2 = rpclib.rpc_connect("user2898668153", "passe99167496d2bbe43876e60430d52eb37b547fa1085b741a15776454eb126d9a603", 15723)
+    # rpc3 = rpclib.rpc_connect("user972794450", "passe7eb16f5c015a53463cc5f27a004854cb76f4ec5c9aece177f01d8b3d13119e445", 16723)
+
+    # DIMXY29
+    rpc1 = rpclib.rpc_connect("user977812407", "pass45a4a6ce9ffafbebd2a478d3858d55c8a4bded74632bb488c8c93164d048237516", 14723)
+    rpc2 = rpclib.rpc_connect("user4228621419", "pass4e51de899bd15c12569d762ded036e5aecd5aeb7be40788a339e72e1fea7359d7e", 15723)
+    rpc3 = rpclib.rpc_connect("user3877003389", "passea3e5a6c7a8a88f5447cc39bc8720cf783bbcef43345b16be9aadc0a1b381006eb", 16723)
 
 
-    for v in ["", "v2"] :
+    ## for v in ["", "v2"] :
     ## for v in [""] :
-    ## for v in ["v2"] :
+    for v in ["v2"] :
         print("creating fungible token 1...")
         result = call_rpc(rpc1, "token"+v+"create", "T1", str(0.000001))  # 100
         assert(check_tx(result))
@@ -104,7 +111,14 @@ def run_tokens_create(rpc):
         assert(check_tx(result))
         nftf7id4 = rpc1.sendrawtransaction(result['hex'])
         print("created token:", nftf7id4)
+        print("tokens for tests created okay!")
 
+        # test tokenlist:
+        check_tokenlist(rpc1, v, [tokenid1, tokenid2, nft00id1, nft00id2, nftf7id1, nftf7id2, nftf7id3, nftf7id4])
+        # test tokenallbalances:
+        check_tokenallbalances(rpc1, v, {tokenid1: 100, tokenid2: 1000_0000, nft00id1: 1, nft00id2: 1, nftf7id1: 1, nftf7id2: 1, nftf7id3: 1, nftf7id4: 1} )
+
+        '''
         # first try transfer tokens to a pk and back, then run assets tests
         print("starting transfer tests for tokenid version=" + v + "...")
         run_transfers(rpc1, rpc2, v, tokenid1, tokenid2, 10)
@@ -112,7 +126,7 @@ def run_tokens_create(rpc):
         run_transfers(rpc1, rpc2, v, nft00id1, nft00id2, 1)
         print("starting transfer tests for nftf7id version=" + v + "...")
         run_transfers(rpc1, rpc2, v, nftf7id1, nftf7id2, 1)
-        print("token transfers tests finished okay")
+        print("token transfers tests finished okay!")
         time.sleep(3)
 
         # assets cc tests:
@@ -131,6 +145,7 @@ def run_tokens_create(rpc):
 
         print("starting assets order expiration tests for tokenid1 version=" + v + "...")
         run_assets_expired_orders(rpc1, rpc2, v, tokenid1, 10, 8, 0.0001, False)
+        print("assets tests finished okay!")
 
         if v == "v2" :  # MofN supported for tokens cc v2 only
             print("running MofN tests for tokens v2:")
@@ -139,9 +154,11 @@ def run_tokens_create(rpc):
             print("starting MofN tests for nft00id1...")
             run_MofN_transfers(rpc1, rpc2, rpc3, nft00id1, 1)
             print("starting MofN tests for nftf7id1...")
-            run_MofN_transfers(rpc1, rpc2, rpc3, nftf7id1, 1)     
+            run_MofN_transfers(rpc1, rpc2, rpc3, nftf7id1, 1)   
+            print("token MofN transfer tests finished okay!")
+        '''
 
-    print("token/assets tests finished okay")
+    print("all token/assets tests finished okay!")
     time.sleep(3)
     exit
 
@@ -197,7 +214,7 @@ def call_rpc_retry(rpc, rpcname, stop_error, *args) :
     for i in range(retries):
         print("calling " + rpcname)
         result = rpcfunc(*args)
-        print(rpcname + " result:", result)
+        # print(rpcname + " result:", result)
         if  check_tx(result):
             break
         if stop_error and get_result_error(result) == stop_error :  
@@ -207,11 +224,12 @@ def call_rpc_retry(rpc, rpcname, stop_error, *args) :
             print("retrying " + rpcname + '...')
             time.sleep(delay)                
     assert(check_tx(result))
-    print(rpcname + " tx created")
+    # print(rpcname + " finished okay")
     return result
 
 def call_token_rpc(rpc, rpcname, stop_error, *args) :
-    print("calling " + rpcname + " for tokenid=", args[0])
+    if len(args) > 0 :
+        print("calling " + rpcname + " for tokenid=", args[0])
     return call_rpc_retry(rpc, rpcname, stop_error, *args)
 
 def run_transfers(rpc1, rpc2, v, tokenid1, tokenid2, amount):
@@ -670,13 +688,103 @@ def run_assets_expired_orders(rpc1, rpc2, v, tokenid, total, units, unitprice, i
     print("trying to cancel not yet expired order with other pk: token"+v+"cancelbid...")
     cancelid3 = call_token_rpc_send_tx(rpc1, "token"+v+"cancelbid", 'bid is empty', tokenid, bidid1)
 
+def check_tokenlist(rpc, v, tokenids) :
+    rpcname = "token" + v + "list"
+    results = {}
+    retries = 24
+    delay = 10
+    for i in range(retries) :
+        tokenlist = call_token_rpc(rpc, rpcname, '')
+        for tid in tokenids :
+            if tid in tokenlist :
+                results[tid] = 1
+        if len(results) == len(tokenids) :
+            break
+        time.sleep(delay)
+        print('retrying check_tokenlist waiting for txns to mine...')
 
+    assert len(results) == len(tokenids), "not all tokenids found in " + rpcname + " results"
+    print('check_tokenlist okay!')
+
+def check_tokenallbalances(rpc, v, checkbalances) :
+    rpcname = "token" + v + "allbalances"
+    results = {}
+    retries = 24
+    delay = 10
+    for i in range(retries) :
+        tokenbalances = call_token_rpc(rpc, rpcname, '')
+        # print('tokenbalances', tokenbalances)
+        for i, (checktid, checkamount) in enumerate(checkbalances.items()) :
+            for tbalance in tokenbalances :
+                for tid, amount in tbalance.items() :  # get tokenid and amount from tokenallbalances items like {'1233937': 100000}
+                    if tid == checktid :
+                        assert amount == checkamount, 'invalid token amount ' + str(amount) + ' returned from ' + rpcname + ' for tokenid ' + checktid
+                        results[tid] = 1
+        if len(results) == len(checkbalances) :
+            break
+        time.sleep(delay)
+        print('retrying check_tokenallbalances waiting for txns to mine...')
+    assert len(results) == len(checkbalances), "not all tokenids have correct amounts in " + rpcname + " results"
+    print('check_tokenallbalances okay!')
 
 menuItems = [
     {"run token create/transfers and assets orders": run_tokens_create},
     {"Exit": exit}
 ]
 
+def readConfig(path) :
+
+    tui_config = configparser.ConfigParser()
+    tui_config.read(tui_config_name)
+    node_ini_path = tui_config['DEFAULT'][path]
+    assert node_ini_path, "cannot read " + path + " property from tui config"
+
+    chain_config = configparser.ConfigParser()
+    chain_config.read(node_ini_path)
+    uname = chain_config['DEFAULT']['rpcuser']
+    passw = chain_config['DEFAULT']['rpcpassword']
+    port = chain_config['DEFAULT']['rpcport']
+
+    assert uname and passw and port, node_ini_path + ' has empty params rpcuser or rpcpassword or rpcport'
+    r = {'rpcuser' : uname, 'rpcpassword' : passw, 'rpcport': port }
+    return r
+
+
+def makeTuiConfig() :
+
+    tui_config = configparser.ConfigParser()
+    tui_config.read(tui_config_name)
+    old_path1 = old_path2 = old_path3 = ''
+    if tui_config.read(tui_config_name) :
+        old_path1 = tui_config['path1']
+        old_path2 = tui_config['path2']
+        old_path3 = tui_config['path3']
+
+    ask_path1 = ""
+    if old_path1 :
+        ask_path1 = "(" + old_path1 + ")"
+    path1 = input("node1 path " + ask_path1 + ":" )
+
+    ask_path2 = ""
+    if old_path2 :
+        ask_path2 = "(" + old_path2 + ")"
+    path2 = input("node2 path " + ask_path2 + ":" )
+
+    ask_path3 = ""
+    if old_path3 :
+        ask_path3 = "(" + old_path3 + ")"
+    path3 = input("node3 path " + ask_path3 + ":" )
+
+    if path1 or path2 or path3 :
+        assert path1 != path2 and path1 != path3 and path2 != path3, 'paths should be different' 
+        if path1 :
+            tui_config['path1'] = path1
+        if path2 :
+            tui_config['path2'] = path2
+        if path3 :
+            tui_config['path3'] = path3
+        with open(tui_config_name, 'w') as configfile:    # save tui config
+            tui_config.write(configfile)
 
 def main():
     while True:
@@ -693,14 +801,15 @@ def main():
             if list(menuItems[int(choice)].keys())[0] == "Exit":
                 list(menuItems[int(choice)].values())[0]()
             else:
-                list(menuItems[int(choice)].values())[0](rpc_connection)
+                list(menuItems[int(choice)].values())[0]()
         except (ValueError, IndexError):
             pass
 
 
 if __name__ == "__main__":
-    print("starting assets orders test (remember to set rpc params for two nodes for your chain)")
-    time.sleep(2)   
-    rpc_connection = ""
-    main()
+    print("starting assets orders test\n plz first start a chain of three nodes and enter paths for your node config files)")
+    # time.sleep(2)   
+    makeTuiConfig()
+    # main()
+    #run_tokens_create()
 

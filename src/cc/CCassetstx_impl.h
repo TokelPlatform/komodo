@@ -426,7 +426,7 @@ UniValue CancelBuyOffer(const CPubKey &mypk, CAmount txfee, uint256 assetid, uin
                 CCAddVintxCond(cpAssets, wrCond, nullptr);  // spend with mypk
             } else {
                 CCwrapper wrCond(::MakeCCcond1of2(A::EvalCode(), pubkey2pk(origpubkey), unspendableAssetsPk)); 
-                CCAddVintxCond(cpAssets, wrCond, unspendableAssetsPrivkey);  // spend with shared pk                
+                CCAddVintxCond(cpAssets, wrCond, unspendableAssetsPrivkey);  // spend with shared pk (for expired orders)               
             }
 
             UniValue sigData = T::FinalizeCCTx(IsRemoteRPCCall(), FINALIZECCTX_NO_CHANGE_WHEN_DUST, cpAssets, mtx, mypk, txfee,
@@ -459,7 +459,7 @@ UniValue CancelSell(const CPubKey &mypk, CAmount txfee, uint256 assetid, uint256
         txfee = 10000;
 
     // add normal inputs only from my mypk (not from any pk in the wallet) to validate the ownership
-    if (txfee <= ASSETS_MARKER_AMOUNT || AddNormalinputsRemote(mtx, mypk, txfee, 0x10000) > 0)
+    if (txfee <= ASSETS_MARKER_AMOUNT || AddNormalinputsRemote(mtx, mypk, txfee, 0x10000) > 0)  // if txfee <= ASSETS_MARKER_AMOUNT then take txfee from marker
     {
         uint256 spendingtxid;
         int32_t spendingvin, h;
@@ -506,7 +506,7 @@ UniValue CancelSell(const CPubKey &mypk, CAmount txfee, uint256 assetid, uint256
                 CCAddVintxCond(cpAssets, wrCond, nullptr);  // spend with mypk
             } else {
                 CCwrapper wrCond(::MakeCCcond1of2(A::EvalCode(), pubkey2pk(origpubkey), unspendableAssetsPk)); 
-                CCAddVintxCond(cpAssets, wrCond, unspendableAssetsPrivkey);  // spend with shared pk                
+                CCAddVintxCond(cpAssets, wrCond, unspendableAssetsPrivkey);  // spend with shared pk (for expired orders)               
             }
 
             UniValue sigData = T::FinalizeCCTx(IsRemoteRPCCall(), FINALIZECCTX_NO_CHANGE_WHEN_DUST, cpAssets, mtx, mypk, txfee,

@@ -118,7 +118,6 @@ def run_tokens_create():
         # test tokenallbalances:
         check_tokenallbalances(rpc1, v, {tokenid1: 100, tokenid2: 1000_0000, nft00id1: 1, nft00id2: 1, nftf7id1: 1, nftf7id2: 1, nftf7id3: 1, nftf7id4: 1} )
 
-        '''
         # first try transfer tokens to a pk and back, then run assets tests
         print("starting transfer tests for tokenid version=" + v + "...")
         run_transfers(rpc1, rpc2, v, tokenid1, tokenid2, 10)
@@ -156,7 +155,6 @@ def run_tokens_create():
             print("starting MofN tests for nftf7id1...")
             run_MofN_transfers(rpc1, rpc2, rpc3, nftf7id1, 1)   
             print("token MofN transfer tests finished okay!")
-        '''
 
     print("all token/assets tests finished okay!")
     time.sleep(3)
@@ -727,6 +725,7 @@ def check_tokenallbalances(rpc, v, checkbalances) :
     assert len(results) == len(checkbalances), "not all tokenids have correct amounts in " + rpcname + " results"
     print('check_tokenallbalances okay!')
 
+'''
 menuItems = [
     {"run token create/transfers and assets orders": run_tokens_create},
     {"Exit": exit}
@@ -804,12 +803,12 @@ def main():
                 list(menuItems[int(choice)].values())[0]()
         except (ValueError, IndexError):
             pass
-
+'''
 
 if __name__ == "__main__":
     print("starting assets orders test\n plz first start a chain of three nodes and enter paths for your node config files)")
     # time.sleep(2)   
-    makeTuiConfig()
+    # makeTuiConfig()
     # main()
-    #run_tokens_create()
+    run_tokens_create()
 

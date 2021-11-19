@@ -58,74 +58,82 @@ static std::map<std::string,bool> nspv_remote_commands =  {
     { "createtxwithnormalinputs", true }, { "tokenv2addccinputs", true }, { "tokenv2infotokel", true }, { "gettransactionsmany", true },
 };
 
-struct NSPV_ntzargs
-{
-    uint256 txid,desttxid,blockhash;
-    int32_t txidht,ntzheight;
-};
 
 // search for notary txid starting from 'height' in the backward or forward direction
-int32_t NSPV_notarization_find(struct NSPV_ntzargs* args, int32_t height, int32_t dir)
+int32_t NSPV_notarization_find(struct NSPV_ntz* ntz, int32_t height, int32_t dir)
 {
     int32_t ntzheight = 0;
     uint256 hashBlock;
     CTransaction tx;
     Notarisation nota;
     char* symbol;
-    std::vector<uint8_t> opret;
+    std::vector<uint8_t> vopret;
 
     symbol = (ASSETCHAINS_SYMBOL[0] == 0) ? (char*)"KMD" : ASSETCHAINS_SYMBOL;
-    memset(args, 0, sizeof(*args));
-    //if ( dir > 0 )
-    //    height += 10;
-    std::cerr << __func__ << " calling ScanNotarisationsDB for height=" << height << " dir=" << dir << std::endl;
+    memset(ntz, 0, sizeof(*ntz));
+
+    // std::cerr << __func__ << " calling ScanNotarisationsDB for height=" << height << " dir=" << dir << std::endl;
     if (dir < 0) {
-        if ((args->txidht = ScanNotarisationsDB(height, symbol, 1440, nota)) == 0)
+        if ((ntz->txidheight = ScanNotarisationsDB(height, symbol, 1440, nota)) == 0)
             return (-1);
     } else {
-        if ((args->txidht = ScanNotarisationsDB2(height, symbol, 1440, nota)) == 0)
+        if ((ntz->txidheight = ScanNotarisationsDB2(height, symbol, 1440, nota)) == 0)
             return (-1);
     }
-    std::cerr << __func__ << " found nota height=" << nota.second.height << " MoMdepth=" << nota.second.MoMDepth << std::endl;
-    args->txid = nota.first;
+    // std::cerr << __func__ << " found nota height=" << nota.second.height << " MoMdepth=" << nota.second.MoMDepth << std::endl;
+    ntz->txid = nota.first;
+    ntz->ntzheight = nota.second.height;
+    ntz->ntzblockhash = nota.second.blockHash;
+    ntz->desttxid = nota.second.txHash;
+    ntz->depth = nota.second.MoMDepth;
+    /*
     if (!GetTransaction(args->txid, tx, hashBlock, false) || tx.vout.size() < 2)
         return (-2);
-    GetOpReturnData(tx.vout[1].scriptPubKey, opret);
-    if (opret.size() >= 32 * 2 + 4)
-        args->desttxid = NSPV_opretextract(&args->ntzheight, &args->blockhash, symbol, opret, args->txid);
-    return (args->ntzheight);
+    GetOpReturnData(tx.vout[1].scriptPubKey, vopret);
+    if (vopret.size() >= 32 * 2 + 4)
+        args->desttxid = NSPV_opretextract(&args->ntzheight, &args->blockhash, symbol, vopret, args->txid);
+    */
+    return ntz->ntzheight;
 }
 
-// finds notarisation bracket:
+
+// finds prev notarisation
 // prev notary txid with notarized height < height
 // and next notary txid with notarised height >= height
-// if not found (chain not notarised returns zeroed bracket)
-int32_t NSPV_notarized_bracket(struct NSPV_ntzargs* prev, struct NSPV_ntzargs* next, int32_t height)
+// if not found or chain not notarised returns zeroed 'prev'
+int32_t NSPV_notarized_prev(struct NSPV_ntz* prev, int32_t height)
 {
-    const int BACKWARD = -1, FORWARD = 1;
+    const int BACKWARD = -1;
     memset(prev, 0, sizeof(*prev));
-    memset(next, 0, sizeof(*next));
 
     // search back
     int32_t ntzbackwardht = NSPV_notarization_find(prev, height, BACKWARD);
-    LogPrint("nspv-details", "%s search backward ntz result ntzht.%d vs height.%d, txidht.%d\n", __func__, prev->ntzheight, height, prev->txidht);
+    LogPrint("nspv-details", "%s search backward ntz result ntzht.%d vs height.%d, txidht.%d\n", __func__, prev->ntzheight, height, prev->txidheight);
+    return 0; // always okay even if chain non-notarised
+}
+
+// finds next notarisation
+// next notary txid with notarised height >= height
+// if not found or chain not notarised returns zeroed 'next'
+int32_t NSPV_notarized_next(struct NSPV_ntz* next, int32_t height)
+{
+    const int FORWARD = 1;
+    memset(next, 0, sizeof(*next));
 
     int32_t forwardht = height;
-    if (ntzbackwardht > 0 && prev->txidht == height)
-        forwardht ++;  // off 1 for not finding next the same as prev
-    while(true)  {
+    while(true)  {  // search until notarized height >= height  
         int32_t ntzforwardht = NSPV_notarization_find(next, forwardht, FORWARD);
-        LogPrint("nspv-details", "%s search forward ntz result ntzht.%d height.%d (will be new prev if less), txidht.%d\n",  __func__, next->ntzheight, height, next->txidht);
+        LogPrint("nspv-details", "%s search forward ntz result ntzht.%d height.%d, txidht.%d\n",  __func__, next->ntzheight, height, next->txidheight);
         if (ntzforwardht > 0 && ntzforwardht < height) {
-            *prev = *next; // this is the new prev
-            forwardht = next->txidht+1; // search next next
+            forwardht = next->txidheight+1; // search next next
         }
         else
             break;
     }
-    return (0);
+    return 0;  // always okay even if chain non-notarised
 }
 
+/*
 int32_t NSPV_ntzextract(struct NSPV_ntz *ptr,uint256 ntztxid,int32_t txidht,uint256 desttxid,int32_t ntzheight)
 {
     CBlockIndex *pindex;
@@ -140,32 +148,29 @@ int32_t NSPV_ntzextract(struct NSPV_ntz *ptr,uint256 ntztxid,int32_t txidht,uint
         ptr->timestamp = pindex->nTime;
     return(0);
 }
+*/
 
-int32_t NSPV_getntzsresp(struct NSPV_ntzsresp* ptr, int32_t reqheight)
+int32_t NSPV_getntzsresp(struct NSPV_ntzsresp* ntzp, int32_t reqheight)
 {
-    struct NSPV_ntzargs prev, next;
-
-    if (NSPV_notarized_bracket(&prev, &next, reqheight) == 0) // get notarization pair, before and after the requested height (zeroed if not found or the chain is not notarised)
-    {
-        if (prev.ntzheight != 0) {
-            if (NSPV_ntzextract(&ptr->prevntz, prev.txid, prev.txidht, prev.desttxid, prev.ntzheight) < 0)
-                return -1;
-        }
-        if (next.ntzheight != 0) {
-            if (NSPV_ntzextract(&ptr->nextntz, next.txid, next.txidht, next.desttxid, next.ntzheight) < 0)
-                return -1;
-        }
-        return sizeof(*ptr);
+    if (NSPV_notarized_next(&ntzp->ntz, reqheight) >= 0) { // find notarization txid for which reqheight is in its scope (or it is zeroed if not found or the chain is not notarised)
+        LOCK(cs_main);
+        CBlockIndex *pindexNtz = komodo_chainactive(ntzp->ntz.txidheight);
+        if (pindexNtz != nullptr)
+            ntzp->ntz.timestamp = pindexNtz->nTime;  // return notarization tx block timestamp for season
+        ntzp->reqheight = reqheight;
+        return sizeof(*ntzp);
     }
-    return -1;
+    else
+        return -1;
 }
+
 
 int32_t NSPV_setequihdr(struct NSPV_equihdr *hdr,int32_t height)
 {
     CBlockIndex *pindex;
     LOCK(cs_main);
 
-    if ( (pindex= komodo_chainactive(height)) != 0 )
+    if ((pindex = komodo_chainactive(height)) != nullptr)
     {
         hdr->nVersion = pindex->nVersion;
         if ( pindex->pprev == 0 )
@@ -176,8 +181,9 @@ int32_t NSPV_setequihdr(struct NSPV_equihdr *hdr,int32_t height)
         hdr->nTime = pindex->nTime;
         hdr->nBits = pindex->nBits;
         hdr->nNonce = pindex->nNonce;
-        memcpy(hdr->nSolution,&pindex->nSolution[0],sizeof(hdr->nSolution));
-        return(sizeof(*hdr) + NSPV_MAX_VARINT_SIZE);
+        memcpy(hdr->nSolution, pindex->nSolution.data(), sizeof(hdr->nSolution));
+        hdr->nSolutionLen = sizeof(hdr->nSolution);
+        return sizeof(*hdr);
     }
     return(-1);
 }
@@ -185,19 +191,17 @@ int32_t NSPV_setequihdr(struct NSPV_equihdr *hdr,int32_t height)
 int32_t NSPV_getinfo(struct NSPV_inforesp *ptr,int32_t reqheight)
 {
     int32_t prevMoMheight, len = 0;
-    CBlockIndex *pindex, *pindex2;
-    struct NSPV_ntzsresp pair;
+    CBlockIndex *pindexTip, *pindexNtz;
     LOCK(cs_main);
 
-    if ((pindex = chainActive.LastTip()) != 0) {
-        ptr->height = pindex->GetHeight();
-        ptr->blockhash = pindex->GetBlockHash();
-        memset(&pair, 0, sizeof(pair));
-        if (NSPV_getntzsresp(&pair, ptr->height - 1) < 0)  
+    if ((pindexTip = chainActive.LastTip()) != nullptr) {
+        ptr->height = pindexTip->GetHeight();
+        ptr->blockhash = pindexTip->GetBlockHash();
+
+        if (NSPV_notarized_prev(&ptr->ntz, ptr->height) < 0)  
             return (-1);
-        ptr->notarization = pair.prevntz;  // use prev notarization as latest notarization
-        if ((pindex2 = komodo_chainactive(ptr->notarization.txidheight)) != 0)
-            ptr->notarization.timestamp = pindex2->nTime;
+        if ((pindexNtz = komodo_chainactive(ptr->ntz.txidheight)) != 0)
+            ptr->ntz.timestamp = pindexNtz->nTime;
         //fprintf(stderr, "timestamp.%i\n", ptr->notarization.timestamp );
         if (reqheight == 0)
             reqheight = ptr->height;
@@ -205,7 +209,7 @@ int32_t NSPV_getinfo(struct NSPV_inforesp *ptr,int32_t reqheight)
         ptr->version = NSPV_PROTOCOL_VERSION;
         if (NSPV_setequihdr(&ptr->H, reqheight) < 0)
             return (-1);
-        return (sizeof(*ptr) + NSPV_MAX_VARINT_SIZE);  // add space for nSolution varint length
+        return sizeof(*ptr); 
     } else
         return (-1);
 }
@@ -904,56 +908,62 @@ int32_t NSPV_gettxproof(struct NSPV_txproof* ptr, int32_t vout, uint256 txid /*,
     return (sizeof(*ptr) - sizeof(ptr->tx) - sizeof(ptr->txproof) + ptr->txlen + ptr->txprooflen);
 }
 
-// get notarisation bracket txns and headers between them
-int32_t NSPV_getntzsproofresp(struct NSPV_ntzsproofresp* ptr, uint256 prevntztxid, uint256 nextntztxid)
+// get notarization tx and headers for the notarized depth
+int32_t NSPV_getntzsproofresp(struct NSPV_ntzsproofresp* ntzproofp, uint256 nextntztxid)
 {
-    int32_t i;
-    uint256 prevHashBlock, nextHashBlock, bhash0, bhash1, desttxid0, desttxid1;
+    //uint256 prevHashBlock, bhash0, desttxid0;
+    uint256 nextHashBlock, bhash1, desttxid1;
+
     CTransaction tx;
+    int16_t dummy, momdepth;
+    const int32_t DONTVALIDATESIG = 0;
 
     LOCK(cs_main);
 
+    /*
     ptr->prevtxid = prevntztxid;
     ptr->prevntz = NSPV_getrawtx(tx, prevHashBlock, &ptr->prevtxlen, ptr->prevtxid);
     ptr->prevtxidht = komodo_blockheight(prevHashBlock);
-    if (NSPV_notarizationextract(0, &ptr->common.prevht, &bhash0, &desttxid0, tx) < 0) {
+    if (NSPV_notarizationextract(DONTVALIDATESIG, &ptr->common.prevht, &bhash0, &desttxid0, &dummy, tx) < 0) {
         LogPrintf("%s error: cant decode notarization opreturn ptr->common.prevht.%d bhash0 %s\n", __func__, ptr->common.prevht, bhash0.ToString());
         return (-2);
     } else if (komodo_blockheight(bhash0) != ptr->common.prevht) {
         LogPrintf("%s error: bhash0 ht.%d not equal to prevht.%d\n", __func__, komodo_blockheight(bhash0), ptr->common.prevht);
         return (-3);
     }
+    */
 
-    ptr->nexttxid = nextntztxid;
-    ptr->nextntz = NSPV_getrawtx(tx, nextHashBlock, &ptr->nexttxlen, ptr->nexttxid);
-    ptr->nexttxidht = komodo_blockheight(nextHashBlock);
-    if (NSPV_notarizationextract(0, &ptr->common.nextht, &bhash1, &desttxid1, tx) < 0) {
-        LogPrintf("%s error: cant decode notarization opreturn ptr->common.nextht.%d bhash1 %s\n", __func__, ptr->common.nextht, bhash1.ToString());
+    ntzproofp->nexttxid = nextntztxid;
+    ntzproofp->nextntz = NSPV_getrawtx(tx, nextHashBlock, &ntzproofp->nexttxlen, ntzproofp->nexttxid);
+    ntzproofp->nexttxidht = komodo_blockheight(nextHashBlock);
+    if (NSPV_notarizationextract(DONTVALIDATESIG, &ntzproofp->common.nextht, &bhash1, &desttxid1, &momdepth, tx) < 0) {
+        LogPrintf("%s error: cant decode notarization opreturn ptr->common.nextht.%d bhash1 %s\n", __func__, ntzproofp->common.nextht, bhash1.ToString());
         return (-5);
-    } else if (komodo_blockheight(bhash1) != ptr->common.nextht) {
-        LogPrintf("%s error: bhash1 ht.%d not equal to nextht.%d\n", __func__, komodo_blockheight(bhash1), ptr->common.nextht);
+    } else if (komodo_blockheight(bhash1) != ntzproofp->common.nextht) {
+        LogPrintf("%s error: bhash1 ht.%d not equal to nextht.%d\n", __func__, komodo_blockheight(bhash1), ntzproofp->common.nextht);
         return (-6);
     }
-    else if (ptr->common.prevht > ptr->common.nextht || (ptr->common.nextht - ptr->common.prevht) > 1440) {
+    /*else if (ptr->common.prevht > ptr->common.nextht || (ptr->common.nextht - ptr->common.prevht) > 1440) {
         LogPrintf("%s error illegal prevht.%d nextht.%d\n", __func__, ptr->common.prevht, ptr->common.nextht);
         return (-7);
-    }
+    }*/
     //fprintf(stderr, "%s -> prevht.%d, %s -> nexht.%d\n", ptr->prevtxid.GetHex().c_str(), ptr->common.prevht, ptr->nexttxid.GetHex().c_str(), ptr->common.nextht);
-    ptr->common.numhdrs = (ptr->common.nextht - ptr->common.prevht);
-    ptr->common.hdrs = (struct NSPV_equihdr*)calloc(ptr->common.numhdrs, sizeof(*ptr->common.hdrs));
+    ntzproofp->common.numhdrs = momdepth;
+    ntzproofp->common.hdrs = (struct NSPV_equihdr*)calloc(ntzproofp->common.numhdrs, sizeof(*ntzproofp->common.hdrs));
     //fprintf(stderr, "prev.%d next.%d allocate numhdrs.%d\n", ptr->common.prevht, ptr->common.nextht, ptr->common.numhdrs);
-    for (i = 0; i < ptr->common.numhdrs; i++) {
+    for (int32_t i = 0; i < ntzproofp->common.numhdrs; i++) {
         //hashBlock = NSPV_hdrhash(&ptr->common.hdrs[i]);
         //fprintf(stderr,"hdr[%d] %s\n",prevht+i,hashBlock.GetHex().c_str());
-        if (NSPV_setequihdr(&ptr->common.hdrs[i], ptr->common.prevht + i + 1) < 0) {
-            LogPrintf("%s error setting hdr for ht.%d\n", __func__, ptr->common.prevht + i + 1);
-            free(ptr->common.hdrs);
-            ptr->common.hdrs = 0;
+        int32_t ht = ntzproofp->common.nextht - momdepth + 1 + i;
+        if (NSPV_setequihdr(&ntzproofp->common.hdrs[i], ht) < 0) {
+            LogPrintf("%s error setting hdr for ht.%d\n", __func__, ht);
+            free(ntzproofp->common.hdrs);
+            ntzproofp->common.hdrs = 0;
             return (-1);
         }
     }
     //fprintf(stderr, "sizeof ptr %ld, common.%ld lens.%d %d\n", sizeof(*ptr), sizeof(ptr->common), ptr->prevtxlen, ptr->nexttxlen);
-    return (sizeof(*ptr) + (sizeof(*ptr->common.hdrs) + NSPV_MAX_VARINT_SIZE) * ptr->common.numhdrs - sizeof(ptr->common.hdrs) - sizeof(ptr->prevntz) - sizeof(ptr->nextntz) + ptr->prevtxlen + ptr->nexttxlen);
+    return sizeof(*ntzproofp) + sizeof(*ntzproofp->common.hdrs) * (ntzproofp->common.numhdrs) + ntzproofp->nexttxlen;
 }
 
 int32_t NSPV_getspentinfo(struct NSPV_spentinfo* ptr, uint256 txid, int32_t vout)
@@ -1087,7 +1097,7 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
             int32_t skipcount = 0;
             int32_t maxrecords = 0;
             uint8_t isCC = 0;
-            int32_t respLen;
+            int32_t respEstimated;
 
             //fprintf(stderr,"utxos: %u > %u, ind.%d, len.%d\n",timestamp,pfrom->nspvdata[ind].prevtime,ind,len);
 
@@ -1130,22 +1140,24 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
 
             LogPrint("nspv-details", "NSPV_UTXOS address=%s isCC.%d skipcount.%d maxrecords.%d\n", coinaddr, isCC, skipcount, maxrecords);
             memset(&U, 0, sizeof(U));
-            if ((respLen = NSPV_getaddressutxos(&U, coinaddr, isCC, skipcount, maxrecords)) > 0) {
-                response.resize(nspvHeaderSize + respLen);
+            if ((respEstimated = NSPV_getaddressutxos(&U, coinaddr, isCC, skipcount, maxrecords)) > 0) {
+                response.resize(nspvHeaderSize + respEstimated);
                 response[0] = NSPV_UTXOSRESP;
                 memcpy(&response[1], &requestId, sizeof(requestId));
-                if (NSPV_rwutxosresp(IGUANA_WRITE, &response[nspvHeaderSize], &U) <= respLen) {
+                int32_t respWritten = NSPV_rwutxosresp(IGUANA_WRITE, &response[nspvHeaderSize], &U);
+                if (respWritten > 0 && respWritten <= respEstimated) {
+                    response.resize(nspvHeaderSize + respWritten);
                     pfrom->PushMessage("nSPV", response);
                     pfrom->nspvdata[idata].prevtime = timestamp;
                     pfrom->nspvdata[idata].nreqs++;
                     LogPrint("nspv-details", "NSPV_UTXOS response: numutxos=%d to node=%d\n", U.numutxos, pfrom->id);
                 } else {
-                    LogPrint("nspv", "NSPV_rwutxosresp incorrect response len.%d\n", respLen);
+                    LogPrint("nspv", "NSPV_rwutxosresp incorrect written response len.%d\n", respWritten);
                     NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_RESPONSE);
                 }
                 NSPV_utxosresp_purge(&U);
             } else {
-                LogPrint("nspv", "NSPV_getaddressutxos error respLen.%d\n", respLen);
+                LogPrint("nspv", "NSPV_getaddressutxos error respEstimated.%d\n", respEstimated);
                 NSPV_senderror(pfrom, requestId, NSPV_ERROR_READ_DATA);
             }
         } 
@@ -1158,7 +1170,7 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
             int32_t skipcount = 0;
             int32_t maxrecords = 0;
             uint8_t isCC = 0;
-            int32_t respLen;
+            int32_t respEstimated;
 
             //fprintf(stderr,"utxos: %u > %u, ind.%d, len.%d\n",timestamp,pfrom->nspvdata[ind].prevtime,ind,len);
 
@@ -1202,23 +1214,25 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
             LogPrint("nspv-details", "NSPV_TXIDS address=%s isCC.%d skipcount.%d maxrecords.%x\n", coinaddr, isCC, skipcount, maxrecords);
 
             memset(&T, 0, sizeof(T));
-            if ((respLen = NSPV_getaddresstxids(&T, coinaddr, isCC, skipcount, maxrecords)) > 0) {
+            if ((respEstimated = NSPV_getaddresstxids(&T, coinaddr, isCC, skipcount, maxrecords)) > 0) {
                 //fprintf(stderr,"respLen.%d\n",respLen);
-                response.resize(nspvHeaderSize + respLen);
+                response.resize(nspvHeaderSize + respEstimated);
                 response[0] = NSPV_TXIDSRESP;
                 memcpy(&response[1], &requestId, sizeof(requestId));
-                if (NSPV_rwtxidsresp(IGUANA_WRITE, &response[nspvHeaderSize], &T) <= respLen) {
+                int32_t respWritten = NSPV_rwtxidsresp(IGUANA_WRITE, &response[nspvHeaderSize], &T);
+                if (respWritten > 0 && respWritten <= respEstimated) {
+                    response.resize(nspvHeaderSize + respWritten);
                     pfrom->PushMessage("nSPV", response);
                     pfrom->nspvdata[idata].prevtime = timestamp;
                     pfrom->nspvdata[idata].nreqs++;
                     LogPrint("nspv-details", "NSPV_TXIDS response: numtxids=%d to node=%d\n", (int)T.numtxids, pfrom->id);
                 } else  {
-                    LogPrint("nspv", "NSPV_rwtxidsresp incorrect response len.%d\n", respLen);
+                    LogPrint("nspv", "NSPV_rwtxidsresp incorrect response written len.%d\n", respWritten);
                     NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_RESPONSE);
                 }
                 NSPV_txidsresp_purge(&T);
             } else {
-                LogPrint("nspv", "NSPV_getaddresstxids error.%d\n", respLen);
+                LogPrint("nspv", "NSPV_getaddresstxids error.%d\n", respEstimated);
                 NSPV_senderror(pfrom, requestId, NSPV_ERROR_READ_DATA);
             }
         } 
@@ -1232,7 +1246,7 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
             uint256 txid;
             uint8_t funcid, isCC = 0;
             int8_t addrlen;
-            int32_t respLen;
+            int32_t respEstimated;
 
             if (requestDataLen > sizeof(isCC) + sizeof(funcid) + sizeof(vout) + sizeof(txid) + sizeof(addrlen)) {
                 uint32_t offset = 0;
@@ -1247,23 +1261,25 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
                     offset += addrlen;
                     LogPrint("nspv-details", "address (%s) isCC.%d funcid.%d %s/v%d len.%d addrlen.%d\n", coinaddr, isCC, funcid, txid.GetHex().c_str(), vout, requestDataLen, addrlen);
                     memset(&M, 0, sizeof(M));
-                    if ((respLen = NSPV_mempooltxids(&M, coinaddr, isCC, funcid, txid, vout)) > 0) {
+                    if ((respEstimated = NSPV_mempooltxids(&M, coinaddr, isCC, funcid, txid, vout)) > 0) {
                         //fprintf(stderr,"NSPV_mempooltxids respLen.%d\n",respLen);
-                        response.resize(nspvHeaderSize + respLen);
+                        response.resize(nspvHeaderSize + respEstimated);
                         response[0] = NSPV_MEMPOOLRESP;
                         memcpy(&response[1], &requestId, sizeof(requestId));
-                        if (NSPV_rwmempoolresp(IGUANA_WRITE, &response[nspvHeaderSize], &M) <= respLen) {
+                        int32_t respWritten = NSPV_rwmempoolresp(IGUANA_WRITE, &response[nspvHeaderSize], &M);
+                        if (respWritten > 0 && respWritten <= respEstimated) {
+                            response.resize(nspvHeaderSize + respWritten);
                             pfrom->PushMessage("nSPV", response);
                             pfrom->nspvdata[idata].prevtime = timestamp;
                             pfrom->nspvdata[idata].nreqs++;
                             LogPrint("nspv-details", "NSPV_MEMPOOL response: numtxids=%d to node=%d\n", M.numtxids, pfrom->id);
                         } else {
-                            LogPrint("nspv", "NSPV_rwmempoolresp incorrect response len.%d\n", respLen);
+                            LogPrint("nspv", "NSPV_rwmempoolresp incorrect response written len.%d\n", respWritten);
                             NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_RESPONSE);
                         }
                         NSPV_mempoolresp_purge(&M);
                     } else {
-                        LogPrint("nspv", "NSPV_mempooltxids err.%d\n", respLen);
+                        LogPrint("nspv", "NSPV_mempooltxids err.%d\n", respEstimated);
                         NSPV_senderror(pfrom, requestId, NSPV_ERROR_READ_DATA);
                     }
                 } else {
@@ -1282,26 +1298,28 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
             struct NSPV_ntzsresp N;
             int32_t height;
             if (requestDataLen == sizeof(height)) {
-                int32_t respLen;
+                int32_t respEstimated;
 
                 iguana_rwnum(IGUANA_READ, &requestData[0], sizeof(height), &height);
                 memset(&N, 0, sizeof(N));
-                if ((respLen = NSPV_getntzsresp(&N, height)) > 0) {
-                    response.resize(nspvHeaderSize + respLen);
+                if ((respEstimated = NSPV_getntzsresp(&N, height)) > 0) {
+                    response.resize(nspvHeaderSize + respEstimated);
                     response[0] = NSPV_NTZSRESP;
                     memcpy(&response[1], &requestId, sizeof(requestId));
-                    if (NSPV_rwntzsresp(IGUANA_WRITE, &response[nspvHeaderSize], &N) <= respLen) {
+                    int32_t respWritten = NSPV_rwntzsresp(IGUANA_WRITE, &response[nspvHeaderSize], &N);
+                    if (respWritten > 0 && respWritten <= respEstimated) {
+                        response.resize(nspvHeaderSize + respWritten);
                         pfrom->PushMessage("nSPV", response);
                         pfrom->nspvdata[idata].prevtime = timestamp;
                         pfrom->nspvdata[idata].nreqs++;
-                        LogPrint("nspv-details", "NSPV_NTZS response: prevntz.txid=%s nextntx.txid=%s node=%d\n", N.prevntz.txid.GetHex().c_str(), N.nextntz.txid.GetHex().c_str(), pfrom->id);
+                        LogPrint("nspv-details", "NSPV_NTZS response: ntz.txid=%s node=%d\n", N.ntz.txid.GetHex(), pfrom->id);
                     } else   {
-                        LogPrint("nspv", "NSPV_rwntzsresp incorrect response len.%d\n", respLen);
+                        LogPrint("nspv", "NSPV_rwntzsresp incorrect response written len.%d\n", respWritten);
                         NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_RESPONSE);
                     }
                     NSPV_ntzsresp_purge(&N);
                 } else {
-                    LogPrint("nspv", "NSPV_rwntzsresp err.%d\n", respLen);
+                    LogPrint("nspv", "NSPV_rwntzsresp respLen err.%d\n", respEstimated);
                     NSPV_senderror(pfrom, requestId, NSPV_ERROR_READ_DATA);
                 }
             } else {
@@ -1314,30 +1332,31 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
     case NSPV_NTZSPROOF: 
         {
             struct NSPV_ntzsproofresp P;
-            uint256 prevntz, nextntz;
-            if (requestDataLen == sizeof(prevntz) + sizeof(nextntz)) {
-                int32_t respLen;
+            uint256 ntztxid;
+            if (requestDataLen == sizeof(ntztxid)) {
+                int32_t respEstimated;
 
-                iguana_rwbignum(IGUANA_READ, &requestData[0], sizeof(prevntz), (uint8_t*)&prevntz);
-                iguana_rwbignum(IGUANA_READ, &requestData[sizeof(prevntz)], sizeof(nextntz), (uint8_t*)&nextntz);
+                iguana_rwbignum(IGUANA_READ, &requestData[0], sizeof(ntztxid), (uint8_t*)&ntztxid);
                 memset(&P, 0, sizeof(P));
-                if ((respLen = NSPV_getntzsproofresp(&P, prevntz, nextntz)) > 0) {
+                if ((respEstimated = NSPV_getntzsproofresp(&P, ntztxid)) > 0) {
                     // fprintf(stderr,"respLen.%d msg prev.%s next.%s\n",respLen,prevntz.GetHex().c_str(),nextntz.GetHex().c_str());
-                    response.resize(nspvHeaderSize + respLen);
+                    response.resize(nspvHeaderSize + respEstimated);
                     response[0] = NSPV_NTZSPROOFRESP;
                     memcpy(&response[1], &requestId, sizeof(requestId));
-                    if (NSPV_rwntzsproofresp(IGUANA_WRITE, &response[nspvHeaderSize], &P) <= respLen) {
+                    int32_t respWritten = NSPV_rwntzsproofresp(IGUANA_WRITE, &response[nspvHeaderSize], &P);
+                    if (respWritten > 0) {
+                        response.resize(nspvHeaderSize + respWritten);
                         pfrom->PushMessage("nSPV", response);
                         pfrom->nspvdata[idata].prevtime = timestamp;
                         pfrom->nspvdata[idata].nreqs++;
-                        LogPrint("nspv-details", "NSPV_NTZSPROOF response: prevtxidht=%d nexttxidht=%d node=%d\n", P.prevtxidht, P.nexttxidht, pfrom->id);
+                        LogPrint("nspv-details", "NSPV_NTZSPROOF response: nexttxidht=%d node=%d\n", P.nexttxidht, pfrom->id);
                     } else {
-                        LogPrint("nspv", "NSPV_rwntzsproofresp incorrect response len.%d\n", respLen);
+                        LogPrint("nspv", "NSPV_rwntzsproofresp incorrect response written len.%d\n", respWritten);
                         NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_RESPONSE);
                     }
                     NSPV_ntzsproofresp_purge(&P);
                 } else  {
-                    LogPrint("nspv", "NSPV_NTZSPROOF err.%d\n", respLen);
+                    LogPrint("nspv", "NSPV_NTZSPROOF respLen err.%d\n", respEstimated);
                     NSPV_senderror(pfrom, requestId, NSPV_ERROR_READ_DATA);
                 }
             } else {
@@ -1353,31 +1372,33 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
             uint256 txid;
             int32_t height, vout;
             if (requestDataLen == sizeof(txid) + sizeof(height) + sizeof(vout)) {
-                int32_t respLen;
+                int32_t respEstimated;
 
                 iguana_rwnum(IGUANA_READ, &requestData[0], sizeof(height), &height);
                 iguana_rwnum(IGUANA_READ, &requestData[sizeof(height)], sizeof(vout), &vout);
                 iguana_rwbignum(IGUANA_READ, &requestData[sizeof(height) + sizeof(vout)], sizeof(txid), (uint8_t*)&txid);
                 //fprintf(stderr,"got txid %s/v%d ht.%d\n",txid.GetHex().c_str(),vout,height);
                 memset(&P, 0, sizeof(P));
-                if ((respLen = NSPV_gettxproof(&P, vout, txid /*,height*/)) > 0) {
-                    //fprintf(stderr,"respLen.%d\n",respLen);
-                    response.resize(nspvHeaderSize + respLen);
+                if ((respEstimated = NSPV_gettxproof(&P, vout, txid /*,height*/)) > 0) {
+                    //fprintf(stderr,"respEstimated.%d\n",respEstimated);
+                    response.resize(nspvHeaderSize + respEstimated);
                     response[0] = NSPV_TXPROOFRESP;
                     memcpy(&response[1], &requestId, sizeof(requestId));
-                    if (NSPV_rwtxproof(IGUANA_WRITE, &response[nspvHeaderSize], &P) <= respLen) {
+                    int32_t respWritten = NSPV_rwtxproof(IGUANA_WRITE, &response[nspvHeaderSize], &P);
+                    if (respWritten > 0 && respWritten <= respEstimated) {
+                        response.resize(nspvHeaderSize + respWritten);
                         //fprintf(stderr,"send response\n");
                         pfrom->PushMessage("nSPV", response);
                         pfrom->nspvdata[idata].prevtime = timestamp;
                         pfrom->nspvdata[idata].nreqs++;
                         LogPrint("nspv-details", "NSPV_TXPROOF response: txlen=%d txprooflen=%d node=%d\n", P.txlen, P.txprooflen, pfrom->id);
                     } else  {
-                        LogPrint("nspv", "NSPV_rwtxproof incorrect response len.%d\n", respLen);
+                        LogPrint("nspv", "NSPV_rwtxproof incorrect response written len.%d\n", respWritten);
                         NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_RESPONSE);
                     }
                     NSPV_txproof_purge(&P);
                 } else  {
-                    LogPrint("nspv", "gettxproof error.%d\n", respLen);
+                    LogPrint("nspv", "gettxproof error.%d\n", respEstimated);
                     NSPV_senderror(pfrom, requestId, NSPV_ERROR_READ_DATA);
                 }
             } else {
@@ -1394,27 +1415,29 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
             uint256 txid;
 
             if (requestDataLen == sizeof(txid) + sizeof(vout)) {
-                int32_t respLen;
+                int32_t respEstimated;
 
                 iguana_rwnum(IGUANA_READ, &requestData[0], sizeof(vout), &vout);
                 iguana_rwbignum(IGUANA_READ, &requestData[sizeof(vout)], sizeof(txid), (uint8_t*)&txid);
                 memset(&S, 0, sizeof(S));
-                if ((respLen = NSPV_getspentinfo(&S, txid, vout)) > 0) {
-                    response.resize(nspvHeaderSize + respLen);
+                if ((respEstimated = NSPV_getspentinfo(&S, txid, vout)) > 0) {
+                    response.resize(nspvHeaderSize + respEstimated);
                     response[0] = NSPV_SPENTINFORESP;
                     memcpy(&response[1], &requestId, sizeof(requestId));
-                    if (NSPV_rwspentinfo(IGUANA_WRITE, &response[nspvHeaderSize], &S) <= respLen) {
+                    int32_t respWritten = NSPV_rwspentinfo(IGUANA_WRITE, &response[nspvHeaderSize], &S);
+                    if (respWritten > 0 && respWritten <= respEstimated) {
+                        response.resize(nspvHeaderSize + respWritten);
                         pfrom->PushMessage("nSPV", response);
                         pfrom->nspvdata[idata].prevtime = timestamp;
                         pfrom->nspvdata[idata].nreqs++;
                         LogPrint("nspv-details", "NSPV_SPENTINFO response: spent txid=%s vout=%d node=%d\n", S.txid.GetHex().c_str(), S.vout, pfrom->id);
                     } else  {
-                        LogPrint("nspv", "NSPV_rwspentinfo incorrect response len.%d\n", respLen);
+                        LogPrint("nspv", "NSPV_rwspentinfo incorrect response written len.%d\n", respWritten);
                         NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_RESPONSE);
                     }
                     NSPV_spentinfo_purge(&S);
                 } else {
-                    LogPrint("nspv", "NSPV_getspentinfo error.%d node=%d\n", respLen, pfrom->id);
+                    LogPrint("nspv", "NSPV_getspentinfo error.%d node=%d\n", respEstimated, pfrom->id);
                     NSPV_senderror(pfrom, requestId, NSPV_ERROR_READ_DATA);
                 }
             } else  {
@@ -1431,34 +1454,36 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
             int32_t txlen;
             if (requestDataLen > sizeof(txid) + sizeof(txlen)) {
                 int32_t offset = 0;
-                int32_t respLen;
+                int32_t respEstimated;
 
                 offset += iguana_rwbignum(IGUANA_READ, &requestData[offset], sizeof(txid), (uint8_t*)&txid);
                 offset += iguana_rwnum(IGUANA_READ, &requestData[offset], sizeof(txlen), &txlen);
                 memset(&B, 0, sizeof(B));
-                if (txlen < MAX_TX_SIZE_AFTER_SAPLING && requestDataLen == offset + txlen && (respLen = NSPV_sendrawtransaction(&B, &requestData[offset], txlen)) > 0) {
-                    response.resize(nspvHeaderSize + respLen);
+                if (txlen < MAX_TX_SIZE_AFTER_SAPLING && requestDataLen == offset + txlen && (respEstimated = NSPV_sendrawtransaction(&B, &requestData[offset], txlen)) > 0) {
+                    response.resize(nspvHeaderSize + respEstimated);
                     response[0] = NSPV_BROADCASTRESP;
                     memcpy(&response[1], &requestId, sizeof(requestId));
-                    if (NSPV_rwbroadcastresp(IGUANA_WRITE, &response[nspvHeaderSize], &B) <= respLen) {
+
+                    int32_t respWritten = NSPV_rwbroadcastresp(IGUANA_WRITE, &response[nspvHeaderSize], &B);
+                    if (respWritten > 0 && respWritten <= respEstimated) {
+                        response.resize(nspvHeaderSize + respWritten);
                         pfrom->PushMessage("nSPV", response);
                         pfrom->nspvdata[idata].prevtime = timestamp;
                         pfrom->nspvdata[idata].nreqs++;
                         LogPrint("nspv-details", "NSPV_BROADCAST response: txid=%s vout=%d to node=%d\n", B.txid.GetHex().c_str(), pfrom->id);
                     } else  {
-                        LogPrint("nspv", "NSPV_rwbroadcastresp incorrect response len.%d\n", respLen);
+                        LogPrint("nspv", "NSPV_rwbroadcastresp incorrect response written len.%d\n", respWritten);
                         NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_RESPONSE);
                     }
                     NSPV_broadcast_purge(&B);
                 } else  {
-                    LogPrint("nspv", "NSPV_BROADCAST either wrong tx len.%d or NSPV_sendrawtransaction error.%d, node=%d\n", txlen, respLen, pfrom->id);
+                    LogPrint("nspv", "NSPV_BROADCAST either wrong tx len.%d or NSPV_sendrawtransaction error.%d, node=%d\n", txlen, respEstimated, pfrom->id);
                     NSPV_senderror(pfrom, requestId, NSPV_ERROR_BROADCAST);
                 }
             } else  {
                 LogPrint("nspv", "NSPV_BROADCAST bad request len.%d node %d\n", requestDataLen, pfrom->id);
                 NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_REQUEST_DATA);
             }
-
         } 
         break;
 
@@ -1467,7 +1492,7 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
             struct NSPV_remoterpcresp R;
             int32_t offset = 0;
             int32_t reqJsonLen;
-            int32_t respJsonLen;
+            int32_t respEstimated;
             offset += iguana_rwnum(IGUANA_READ, &requestData[offset], sizeof(reqJsonLen), &reqJsonLen);
             if (reqJsonLen > NSPV_MAXJSONREQUESTSIZE)  {
                 LogPrint("nspv", "NSPV_REMOTERPC too big json request len.%d\n", reqJsonLen);
@@ -1479,15 +1504,21 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
                 LogPrint("nspv", "NSPV_REMOTERPC bad request len.%d node %d\n", requestDataLen, pfrom->id);
                 NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_REQUEST_DATA);
             }
-            if ((respJsonLen = NSPV_remoterpc(&R, (char*)&requestData[offset], reqJsonLen)) > 0) {
-                response.resize(nspvHeaderSize + respJsonLen);
+            if ((respEstimated = NSPV_remoterpc(&R, (char*)&requestData[offset], reqJsonLen)) > 0) {
+                response.resize(nspvHeaderSize + respEstimated);
                 response[0] = NSPV_REMOTERPCRESP;
                 memcpy(&response[1], &requestId, sizeof(requestId));
-                NSPV_rwremoterpcresp(IGUANA_WRITE, &response[nspvHeaderSize], &R, respJsonLen);
-                pfrom->PushMessage("nSPV", response);
-                pfrom->nspvdata[idata].prevtime = timestamp;
-                pfrom->nspvdata[idata].nreqs++;
-                LogPrint("nspv-details", "NSPV_REMOTERPCRESP response: method=%s json=%s to node=%d\n", R.method, R.json, pfrom->id);
+                int32_t respWritten = NSPV_rwremoterpcresp(IGUANA_WRITE, &response[nspvHeaderSize], &R, respEstimated);
+                if (respWritten > 0 && respWritten <= respEstimated) {
+                    response.resize(nspvHeaderSize + respWritten);
+                    pfrom->PushMessage("nSPV", response);
+                    pfrom->nspvdata[idata].prevtime = timestamp;
+                    pfrom->nspvdata[idata].nreqs++;
+                    LogPrint("nspv-details", "NSPV_REMOTERPCRESP response: method=%s json=%s to node=%d\n", R.method, R.json, pfrom->id);
+                } else  {
+                    LogPrint("nspv", "NSPV_rwbroadcastresp incorrect response written len.%d\n", respWritten);
+                    NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_RESPONSE);
+                }
                 NSPV_remoterpc_purge(&R);
             } else  {
                 LogPrint("nspv", "NSPV_REMOTERPC could not execute request node %d\n", requestDataLen, pfrom->id);
@@ -1506,7 +1537,7 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
             char funcids[27];
             uint256 filtertxid;
             bool errorFormat = false;
-            int32_t respLen;
+            int32_t respEstimated;
 
             //fprintf(stderr,"utxos: %u > %u, ind.%d, len.%d\n",timestamp,pfrom->nspvdata[ind].prevtime,ind,len);
 
@@ -1554,22 +1585,24 @@ void komodo_nSPVreq(CNode* pfrom, std::vector<uint8_t> request) // received a re
             }
             iguana_rwbignum(IGUANA_READ, &requestData[offset], sizeof(filtertxid), (uint8_t*)&filtertxid);
             memset(&U, 0, sizeof(U));
-            if ((respLen = NSPV_getccmoduleutxos(&U, coinaddr, amount, evalcode, funcids, filtertxid)) > 0) {
-                response.resize(nspvHeaderSize + respLen);
+            if ((respEstimated = NSPV_getccmoduleutxos(&U, coinaddr, amount, evalcode, funcids, filtertxid)) > 0) {
+                response.resize(nspvHeaderSize + respEstimated);
                 response[0] = NSPV_CCMODULEUTXOSRESP;
                 memcpy(&response[1], &requestId, sizeof(requestId));
-                if (NSPV_rwutxosresp(IGUANA_WRITE, &response[nspvHeaderSize], &U) <= respLen) {
+                int32_t respWritten = NSPV_rwutxosresp(IGUANA_WRITE, &response[nspvHeaderSize], &U);
+                if (respWritten > 0 && respWritten <= respEstimated) {
+                    response.resize(nspvHeaderSize + respWritten);
                     pfrom->PushMessage("nSPV", response);
                     pfrom->nspvdata[idata].prevtime = timestamp;
                     pfrom->nspvdata[idata].nreqs++;
                     LogPrint("nspv-details", "NSPV_CCMODULEUTXOS returned %d utxos to node=%d\n", (int)U.numutxos, pfrom->id);
                 } else  {
-                    LogPrint("nspv", "NSPV_rwutxosresp incorrect response len.%d\n", respLen);
+                    LogPrint("nspv", "NSPV_rwutxosresp incorrect response written len.%d\n", respWritten);
                     NSPV_senderror(pfrom, requestId, NSPV_ERROR_INVALID_RESPONSE);
                 }
                 NSPV_utxosresp_purge(&U);
             } else  {
-                LogPrint("nspv", "NSPV_getccmoduleutxos error.%d, node %d\n", respLen, pfrom->id);
+                LogPrint("nspv", "NSPV_getccmoduleutxos error.%d, node %d\n", respEstimated, pfrom->id);
                 NSPV_senderror(pfrom, requestId, NSPV_ERROR_READ_DATA);
             }
 

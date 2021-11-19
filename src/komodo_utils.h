@@ -818,7 +818,7 @@ int32_t komodo_is_issuer()
 
 int32_t bitweight(uint64_t x)
 {
-    int i,wt = 0;
+    int i, wt = 0;
     for (i=0; i<64; i++)
         if ( (1LL << i) & x )
             wt++;

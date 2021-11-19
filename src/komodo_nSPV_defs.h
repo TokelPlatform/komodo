@@ -18,8 +18,14 @@
 #define KOMODO_NSPV_DEFSH
 
 #include <stdlib.h>
+#include "uint256.h"
+#include "univalue.h"
+#include "script/script.h"
+#include "primitives/transaction.h"
+#include "amount.h"
+#include "main.h"
 
-#define NSPV_PROTOCOL_VERSION 0x00000005
+#define NSPV_PROTOCOL_VERSION 0x00000006
 #define NSPV_POLLITERS 200
 #define NSPV_POLLMICROS 50000
 #define NSPV_MAXVINS 64
@@ -71,7 +77,12 @@
 
 #define NSPV_MAXREQSPERSEC 15
 
-#define NSPV_MAX_VARINT_SIZE 9
+#ifndef KOMODO_NSPV_FULLNODE
+#define KOMODO_NSPV_FULLNODE (KOMODO_NSPV <= 0)
+#endif // !KOMODO_NSPV_FULLNODE
+#ifndef KOMODO_NSPV_SUPERLITE
+#define KOMODO_NSPV_SUPERLITE (KOMODO_NSPV > 0)
+#endif // !KOMODO_NSPV_SUPERLITE
 
 int32_t NSPV_gettransaction(int32_t skipvalidation,int32_t vout,uint256 txid,int32_t height,CTransaction &tx,uint256 &hashblock,int32_t &txheight,int32_t &currentheight,int64_t extradata,uint32_t tiptime,int64_t &rewardsum);
 UniValue NSPV_spend(char *srcaddr,char *destaddr,int64_t satoshis);
@@ -87,6 +98,7 @@ struct NSPV_equihdr
     uint32_t nTime;
     uint32_t nBits;
     uint256 nNonce;
+    uint64_t nSolutionLen; 
     uint8_t nSolution[1344];
 };
 
@@ -133,20 +145,26 @@ struct NSPV_mempoolresp
 
 struct NSPV_ntz
 {
-    uint256 blockhash,txid,othertxid;
-    int32_t height,txidheight;
-    uint32_t timestamp;
+    uint256 txid;       // notarization txid
+    uint256 desttxid;   // for back notarizations this is notarization txid from KMD/BTC chain 
+    uint256 ntzblockhash;  // notarization tx blockhash
+    int32_t txidheight;     // notarization tx height
+    int32_t ntzheight;  // notarized height by this notarization tx
+    int16_t depth;
+    //uint256 blockhash, txid, othertxid;
+    //int32_t height, txidheight;
+    uint32_t timestamp; // timestamp of the notarization tx block
 };
 
 struct NSPV_ntzsresp
 {
-    struct NSPV_ntz prevntz,nextntz;
+    struct NSPV_ntz ntz;
     int32_t reqheight;
 };
 
 struct NSPV_inforesp
 {
-    struct NSPV_ntz notarization; // last notarisation
+    struct NSPV_ntz ntz; // last notarisation
     uint256 blockhash;  // chain tip blockhash
     int32_t height;     // chain tip height
     int32_t hdrheight;  // requested block height (it will be the tip height if requested height is 0)
@@ -158,24 +176,24 @@ struct NSPV_txproof
 {
     uint256 txid;
     int64_t unspentvalue;
-    int32_t height,vout,txlen,txprooflen;
-    uint8_t *tx,*txproof;
+    int32_t height, vout, txlen, txprooflen;
+    uint8_t *tx, *txproof;
     uint256 hashblock;
 };
 
 struct NSPV_ntzproofshared
 {
     struct NSPV_equihdr *hdrs;
-    int32_t prevht,nextht,pad32;
-    uint16_t numhdrs,pad16;
+    int32_t nextht /*, pad32*/;
+    uint16_t numhdrs /*, pad16*/;
 };
 
 struct NSPV_ntzsproofresp
 {
     struct NSPV_ntzproofshared common;
-    uint256 prevtxid,nexttxid;
-    int32_t prevtxidht,nexttxidht,prevtxlen,nexttxlen;
-    uint8_t *prevntz,*nextntz;
+    uint256 nexttxid;
+    int32_t nexttxidht, nexttxlen;
+    uint8_t *nextntz;
 };
 
 struct NSPV_MMRproof
@@ -209,11 +227,37 @@ struct NSPV_remoterpcresp
     char *json;
 };
 
+/*struct NSPV_ntzargs
+{
+    uint256 txid;       // notarization txid
+    uint256 desttxid;   // for back notarizations this is notarization txid from KMD/BTC chain 
+    uint256 blockhash;  // notarization tx blockhash
+    int32_t txidht;     // notarization tx height
+    int32_t ntzheight;  // notarized height by this notarization tx
+};*/
+
 extern struct NSPV_inforesp NSPV_inforesult;
 
 void NSPV_CCunspents(std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue>>& unspentOutputs, char* coinaddr, bool ccflag);
 void NSPV_CCindexOutputs(std::vector<std::pair<CAddressIndexKey, CAmount>>& indexOutputs, char* coinaddr, bool ccflag);
 void NSPV_CCtxids(std::vector<uint256>& txids, char* coinaddr, bool ccflag, uint8_t evalcode, uint256 filtertxid, uint8_t func);
+bool NSPV_SignTx(CMutableTransaction &mtx,int32_t vini,int64_t utxovalue,const CScript scriptPubKey,uint32_t nTime);
+
+UniValue NSPV_getinfo_req(int32_t reqht);
+UniValue NSPV_login(char *wifstr);
+UniValue NSPV_logout();
+UniValue NSPV_addresstxids(char *coinaddr,int32_t CCflag,int32_t skipcount,int32_t filter);
+UniValue NSPV_addressutxos(char *coinaddr,int32_t CCflag,int32_t skipcount,int32_t filter);
+UniValue NSPV_mempooltxids(char *coinaddr,int32_t CCflag,uint8_t funcid,uint256 txid,int32_t vout);
+UniValue NSPV_broadcast(char *hex);
+UniValue NSPV_spend(char *srcaddr,char *destaddr,int64_t satoshis);
+UniValue NSPV_spentinfo(uint256 txid,int32_t vout);
+UniValue NSPV_notarizations(int32_t height);
+UniValue NSPV_hdrsproof(int32_t nextheight);
+UniValue NSPV_txproof(int32_t vout,uint256 txid,int32_t height);
+UniValue NSPV_ccmoduleutxos(char *coinaddr, int64_t amount, uint8_t evalcode, std::string funcids, uint256 filtertxid);
+
+int32_t bitweight(uint64_t x);
 
 extern std::map<int32_t, std::string> nspvErrors;
 

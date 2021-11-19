@@ -24,6 +24,7 @@
 #include "primitives/transaction.h"
 #include "threadsafety.h"
 
+#include "komodo_structs.h"
 #include "komodo_nk.h"
 
 #define KOMODO_EARLYTXID_HEIGHT 100
@@ -666,6 +667,9 @@ extern uint16_t KMD_PORT, BITCOIND_RPCPORT, DEST_PORT;
 extern char KMDUSERPASS[], BTCUSERPASS[];
 extern uint32_t KOMODO_STOPAT;
 extern int32_t ASSETCHAINS_CBMATURITY;
+extern struct komodo_state KOMODO_STATES[];
+extern int32_t KOMODO_EXTRASATOSHI;
+
 
 #ifndef KOMODO_NSPV_FULLNODE
 #define KOMODO_NSPV_FULLNODE (KOMODO_NSPV <= 0)

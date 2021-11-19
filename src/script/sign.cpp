@@ -28,7 +28,7 @@
 #include "cc/CCinclude.h"
 #include "cc/eval.h"
 #include "key_io.h"
-
+#include "komodo_nSPV_defs.h"
 #include <boost/foreach.hpp>
 
 using namespace std;
@@ -37,12 +37,6 @@ typedef vector<unsigned char> valtype;
 extern uint8_t ASSETCHAINS_TXPOW;
 extern char NSPV_wifstr[],NSPV_pubkeystr[];
 extern int32_t KOMODO_NSPV;
-#ifndef KOMODO_NSPV_FULLNODE
-#define KOMODO_NSPV_FULLNODE (KOMODO_NSPV <= 0)
-#endif // !KOMODO_NSPV_FULLNODE
-#ifndef KOMODO_NSPV_SUPERLITE
-#define KOMODO_NSPV_SUPERLITE (KOMODO_NSPV > 0)
-#endif // !KOMODO_NSPV_SUPERLITE
 
 uint256 SIG_TXHASH;
 

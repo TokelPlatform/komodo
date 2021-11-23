@@ -228,12 +228,50 @@ UniValue getindexkeyforcc(const UniValue& params, bool fHelp, const CPubKey& rem
     return ccaddress;
 }
 
+extern bool fAddressIndex;
+// search for pubkey for a given normal address
+UniValue searchforpubkey(const UniValue& params, bool fHelp, const CPubKey& remotepk)
+{
+    if (fHelp || params.size() != 1)
+    {
+        string msg = "searchforpubkey R-address\n"
+            "\nSearch for the pubkey for an address by trying to get a spending input for an utxo on this address. AddressIndex is required\n"
+            "\nArguments:\n"
+            "address\n\n";
+        throw std::runtime_error(msg);
+    }
+    if (!fAddressIndex) throw std::runtime_error("address index not enabled");
+    std::string address = params[0].get_str();
+    const bool NORMAL_OUTPUTS = false;
+
+    std::vector<std::pair<CAddressIndexKey, CAmount>> addressIndex;
+    SetAddressIndexOutputs(addressIndex, (char*)address.c_str(), NORMAL_OUTPUTS);
+    for (std::vector<std::pair<CAddressIndexKey, CAmount>>::const_iterator it = addressIndex.begin(); it != addressIndex.end(); it++) {
+        if (it->first.spending)  {
+            CTransaction tx;
+            uint256 blockHash;
+            if (myGetTransaction(it->first.txhash, tx, blockHash)) {
+                if (it->first.index < tx.vin.size()) {
+                    vuint8_t pk, sig;
+                    if (E_UNMARSHAL(vuint8_t(tx.vin[it->first.index].scriptSig.begin(), tx.vin[it->first.index].scriptSig.end()), ss >> sig; ss >> pk))
+                        return HexStr(pk);
+                }
+            }
+        }
+    }
+    if (addressIndex.size() == 0)
+        throw std::runtime_error("address not found");
+    else
+        throw std::runtime_error("pubkey not found");
+}
+
 static const CRPCCommand commands[] =
 { //  category              name                actor (function)        okSafeMode
   //  -------------- ------------------------  -----------------------  ----------
     // cc helpers
 	{ "ccutils",      "listccunspents",    &listccunspents,      true },
 	{ "ccutils",      "getindexkeyforcc",    &getindexkeyforcc,      true },
+	{ "ccutils",      "searchforpubkey",    &searchforpubkey,      true },
     { "nspv",       "createtxwithnormalinputs",      &createtxwithnormalinputs,         true },
     { "nspv",       "gettransactionsmany",      &gettransactionsmany,         true },
 };

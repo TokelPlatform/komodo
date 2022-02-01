@@ -44,7 +44,7 @@ then
 Usage:
 $0 --help
   Show this help message and exit.
-$0 [ --enable-lcov || --disable-tests ] [ --disable-mining ] [ --enable-proton ] [ --disable-libs ] [ --enable-debug ] [ MAKEARGS... ]
+$0 [ --enable-lcov || --disable-tests ] [ --disable-mining ] [ --enable-proton ] [ --disable-libs ] [ --enable-debug ] [--enable-websockets] [ MAKEARGS... ]
   Build Komodo and most of its transitive dependencies from
   source. MAKEARGS are applied to both dependencies and Komodo itself.
   If --enable-lcov is passed, Komodo is configured to add coverage
@@ -55,6 +55,7 @@ $0 [ --enable-lcov || --disable-tests ] [ --disable-mining ] [ --enable-proton ]
   If --enable-proton is passed, Komodo is configured to build the Apache Qpid Proton
   library required for AMQP support. This library is not built by default.
   It must be passed after the test/mining arguments, if present.
+  If --enable-websockets is passed, Komodo is configured to build with webspckets support for nspv protocol
 EOF
     exit 0
 fi
@@ -108,6 +109,14 @@ else
    VERBOSITY="--disable-silent-rules"
 fi
 
+# If --enable-websockets is the next argument, enable websockets support for nspv clients:
+WEBSOCKETS_ARG=''
+if [ "x${1:-}" = 'x--enable-websockets' ]
+then
+WEBSOCKETS_ARG='--enable-websockets=yes'
+shift
+fi
+
 eval "$MAKE" --version
 as --version
 ld -v
@@ -115,7 +124,7 @@ ld -v
 HOST="$HOST" BUILD="$BUILD" NO_PROTON="$PROTON_ARG" "$MAKE" "$@" -C ./depends/ V=1
 ./autogen.sh
 
-CONFIG_SITE="$PWD/depends/$HOST/share/config.site" ./configure "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" "$DEBUGGING_ARG" "$CONFIGURE_FLAGS" CXXFLAGS='-g' \
+CONFIG_SITE="$PWD/depends/$HOST/share/config.site" ./configure "$HARDENING_ARG" "$LCOV_ARG" "$TEST_ARG" "$MINING_ARG" "$PROTON_ARG" "$DEBUGGING_ARG" "$CONFIGURE_FLAGS" "$WEBSOCKETS_ARG" CXXFLAGS='-g' \
   --with-custom-bin=yes CUSTOM_BIN_NAME=tokel CUSTOM_BRAND_NAME=Tokel \
   CUSTOM_SERVER_ARGS="'-ac_name=TOKEL -ac_supply=100000000 -ac_eras=2 -ac_cbmaturity=1 -ac_reward=100000000,4250000000 -ac_end=80640,0 -ac_decay=0,77700000 -ac_halving=0,525600 -ac_cc=555 -ac_ccenable=236,245,246,247 -ac_adaptivepow=6 -addnode=135.125.204.169 -addnode=192.99.71.125 -nspv_msg=1'" \
   CUSTOM_CLIENT_ARGS='-ac_name=TOKEL'

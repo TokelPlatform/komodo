@@ -1209,7 +1209,7 @@ CAmount AddNormalinputsLocal(CMutableTransaction& mtx, CPubKey mypk, CAmount tot
             return (0);
         }
         up = &utxos[ind];
-        mtx.vin.push_back(CTxIn(up->txid, up->vout, CScript()));
+        mtx.vin.push_back(CTxIn(up->txid, up->vout, CScript(), (4294967295U-1)));  // for TOKEL sequence non-final to allow CLTV spending
         totalinputs += up->nValue;
         remains -= up->nValue;
         utxos[ind] = utxos[--n];
@@ -1327,7 +1327,7 @@ CAmount AddNormalinputsRemote(CMutableTransaction& mtx, CPubKey mypk, CAmount to
             return (0);
         }
         up = &utxos[ind];
-        mtx.vin.push_back(CTxIn(up->txid, up->vout, CScript()));
+        mtx.vin.push_back(CTxIn(up->txid, up->vout, CScript(), (4294967295U-1)));  // for TOKEL sequence non-final to allow CLTV spending
         totalinputs += up->nValue;
         remains -= up->nValue;
         utxos[ind] = utxos[--n];

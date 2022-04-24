@@ -258,6 +258,7 @@ bool TestFinalizeTx(CMutableTransaction& mtx, struct CCcontract_info *cp, uint8_
                 }
 
             } else {
+                bool bdontsign = false;
                 char destaddr[KOMODO_ADDRESS_BUFSIZE];
                 if (!Getscriptaddress(destaddr, vintx.vout[mtx.vin[i].prevout.n].scriptPubKey))  {
                     std::cerr << __func__ << " vini." << i << " could not Getscriptaddress for scriptPubKey=" << vintx.vout[mtx.vin[i].prevout.n].scriptPubKey.ToString() << std::endl;
@@ -278,22 +279,32 @@ bool TestFinalizeTx(CMutableTransaction& mtx, struct CCcontract_info *cp, uint8_
                     //std::cerr << __func__ << " vini." << i << " found mytokenaddr=" << mytokenaddr << " evalcode=" << (int)cp->evalcode << std::endl;
                 } else {
                     const uint8_t nullpriv[32] = {'\0'};
+                    const uint8_t dontsign[32]  = { 0xff };
                     // use vector of dest addresses and conds to probe vintxconds
                     for (auto& t : cp->CCvintxprobes) {
                         char coinaddr[KOMODO_ADDRESS_BUFSIZE];
                         if (t.CCwrapped.get() != NULL) {
-                            CCwrapper anonCond = t.CCwrapped;
-                            CCtoAnon(anonCond.get());
-                            Getscriptaddress(coinaddr, CCPubKey(anonCond.get(), true));
-                            if (strcmp(destaddr, coinaddr) == 0) {
-                                //std::cerr << __func__ << " vini." << i << " found vintxprobe=" << coinaddr  << " privkey=" << (memcmp(t.CCpriv, nullpriv, sizeof(t.CCpriv) / sizeof(t.CCpriv[0])) != 0) << std::endl;
-                                if (memcmp(t.CCpriv, nullpriv, sizeof(t.CCpriv) / sizeof(t.CCpriv[0])) != 0)
-                                    privkey = t.CCpriv;
-                                else
-                                    privkey = myprivkey;
-                                cond = t.CCwrapped;
-                                break;
+                            //CCwrapper anonCond = t.CCwrapped;
+                            //CCtoAnon(anonCond.get());
+                            //Getscriptaddress(coinaddr, CCPubKey(anonCond.get(), CC_MIXED_MODE_SUBVER_0));
+                            for (CC_SUBVER ccSubVer = CC_MIXED_MODE_SUBVER_0; ccSubVer <= CC_MIXED_MODE_SUBVER_MAX; ccSubVer = (CC_SUBVER)(ccSubVer+1))
+                            {
+                                char coinaddr[KOMODO_ADDRESS_BUFSIZE];
+                                //Getscriptaddress(coinaddr, CCPubKey(anonCond.get(), ccSubVer));
+                                Getscriptaddress(coinaddr, CCPubKey(t.CCwrapped.get(), ccSubVer));
+                                if (strcmp(destaddr, coinaddr) == 0) {
+                                    if (memcmp(t.CCpriv, nullpriv, sizeof(t.CCpriv) / sizeof(t.CCpriv[0])) == 0)
+                                        privkey = myprivkey;
+                                    else if (memcmp(t.CCpriv, dontsign, sizeof(t.CCpriv) / sizeof(t.CCpriv[0])) == 0)
+                                        bdontsign = true;
+                                    else
+                                        privkey = t.CCpriv;
+
+                                    cond = t.CCwrapped;
+                                    break;
+                                }
                             }
+                            if (cond.get() != nullptr) break; // found cond
                         }
                     }
                 }
@@ -345,10 +356,10 @@ CTxOut TestMakeTokensCCMofNvoutMixed(uint8_t evalcode1, uint8_t evalcode2, CAmou
 {
     CTxOut vout;
     CCwrapper payoutCond( TestMakeTokensv2CCcondMofN(evalcode1, evalcode2, M, pks) );
-    if (!CCtoAnon(payoutCond.get())) 
-        return vout;
+    //if (!CCtoAnon(payoutCond.get())) 
+    //    return vout;
 
-    vout = CTxOut(nValue, CCPubKey(payoutCond.get(),true));
+    vout = CTxOut(nValue, CCPubKey(payoutCond.get(), CC_MIXED_MODE_SUBVER_0));
 
     {
         std::vector<vscript_t> vvData;
@@ -421,7 +432,7 @@ protected:
 
                 ScriptError error;
 
-                bool bCheck = checker.CheckCryptoCondition(vout.scriptPubKey.GetCCV2SPK(), &error);
+                bool bCheck = checker.CheckCryptoConditionSpk(vout.scriptPubKey.GetCCV2SPK(), &error);
                 if (!bCheck) {
                     std::cerr << __func__ << " CheckCryptoCondition error=" << ScriptErrorString(error) << " eval=" << eval.state.GetRejectReason() << std::endl;
                     return false;
@@ -1142,7 +1153,7 @@ TEST_F(TestAssetsCC, tokenv2ask_basic)
     }
     {
         // test: different tokenid in opdrop
-        eval.SetCurrentHeight(CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
+        eval.SetCurrentHeight(CCUpgrades::CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
         strcpy(ASSETCHAINS_SYMBOL, "TOKEL");
         CCUpgrades::SelectUpgrades(ASSETCHAINS_SYMBOL);
 
@@ -1347,7 +1358,7 @@ TEST_F(TestAssetsCC, tokenv2fillask_basic)
     {
         for (CAmount fillUnits : { 1, 2 })  {  // fill partially and totally
             // test: fillask with different tokenid in opdrop
-            eval.SetCurrentHeight(CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
+            eval.SetCurrentHeight(CCUpgrades::CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
             //eval.SetCurrentHeight(1);
 
             strcpy(ASSETCHAINS_SYMBOL, "TOKEL");
@@ -1403,7 +1414,7 @@ TEST_F(TestAssetsCC, tokenv2fillask_basic)
     {
         // test: make different tokenid in opdrop in ask and try fillask it
         eval.SetCurrentHeight(111);  //set height 
-        //eval.SetCurrentHeight(CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
+        //eval.SetCurrentHeight(CCUpgrades::CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
         strcpy(ASSETCHAINS_SYMBOL, "TOKEL");
         CCUpgrades::SelectUpgrades(ASSETCHAINS_SYMBOL);
 
@@ -1411,7 +1422,7 @@ TEST_F(TestAssetsCC, tokenv2fillask_basic)
         CPubKey mypk = pk1;
         uint256 mytokenid = tokenid1;
         CAmount unit_price = 501;
-        int32_t expiryHeight = CCASSETS_OPDROP_FIX_TOKEL_HEIGHT+222;
+        int32_t expiryHeight = CCUpgrades::CCASSETS_OPDROP_FIX_TOKEL_HEIGHT+222;
 
         struct CCcontract_info *cpTokens, tokensC;
         cpTokens = CCinit(&tokensC, TokensV2::EvalCode());  
@@ -1443,7 +1454,7 @@ TEST_F(TestAssetsCC, tokenv2fillask_basic)
         uint256 askid = mtx.GetHash();
 
         // add fill ask 
-        eval.SetCurrentHeight(CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);  // after fix activation
+        eval.SetCurrentHeight(CCUpgrades::CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);  // after fix activation
 
         CAmount fillUnits = 1;
         CAmount txfee = 10000;
@@ -1596,7 +1607,7 @@ TEST_F(TestAssetsCC, tokenv2fillbid_basic)
     {
         // test: fillbid with different tokenid in opdrop
         //eval.SetCurrentHeight(111);
-        eval.SetCurrentHeight(CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
+        eval.SetCurrentHeight(CCUpgrades::CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
         strcpy(ASSETCHAINS_SYMBOL, "TOKEL");
         CCUpgrades::SelectUpgrades(ASSETCHAINS_SYMBOL);
 
@@ -1770,7 +1781,7 @@ TEST_F(TestAssetsCC, tokenv2cancelask)
             EXPECT_FALSE(TestRunCCEval(mtx6)); // must fail
         }
         {  
-            eval.SetCurrentHeight(CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
+            eval.SetCurrentHeight(CCUpgrades::CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
             strcpy(ASSETCHAINS_SYMBOL, "TOKEL");
             CCUpgrades::SelectUpgrades(ASSETCHAINS_SYMBOL);
             

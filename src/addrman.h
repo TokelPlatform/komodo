@@ -499,9 +499,9 @@ public:
         Check();
     }
 
-    void Clear()
+private:
+    void Clear_()
     {
-        LOCK(cs);
         std::vector<int>().swap(vRandom);
         nKey = GetRandHash();
         for (size_t bucket = 0; bucket < ADDRMAN_NEW_BUCKET_COUNT; bucket++) {
@@ -522,14 +522,16 @@ public:
         mapAddr.clear();
     }
 
+public:
     CAddrMan()
     {
-        // Clear(); // causes boost: mutex lock failed in pthread_mutex_lock: Invalid argument exception because of static init concurrency (static dd_mutex has not been constructed yet)
+        Clear_(); // use unlocked version bcz locked one caused boost: mutex lock failed in pthread_mutex_lock: Invalid argument exception because of static init concurrency (static dd_mutex has not been constructed yet)
     }
 
-    void Init()
+    void Clear()
     {
-        Clear();
+        LOCK(cs);
+        Clear_();
     }
 
     ~CAddrMan()

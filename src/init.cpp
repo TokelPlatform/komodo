@@ -938,8 +938,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (setProcDEPPol != NULL) setProcDEPPol(PROCESS_DEP_ENABLE);
 #endif
 
-    addrman.Init(); // call clear addr table
-
     if (!SetupNetworking())
         return InitError("Error: Initializing networking failed");
 

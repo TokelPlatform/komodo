@@ -1,4 +1,5 @@
-DIST_SUBDIRS = secp256k1 univalue cryptoconditions
+DIST_SUBDIRS = secp256k1 univalue
+SUBDIRS = cryptoconditions
 
 AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS) $(SAN_LDFLAGS) $(HARDENED_LDFLAGS)
 AM_CXXFLAGS = $(SAN_CXXFLAGS) $(HARDENED_CXXFLAGS) $(ERROR_CXXFLAGS)
@@ -48,7 +49,7 @@ LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBVERUS_CRYPTO=crypto/libverus_crypto.a
 LIBVERUS_PORTABLE_CRYPTO=crypto/libverus_portable_crypto.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
-LIBCRYPTOCONDITIONS=cryptoconditions/libcryptoconditions_core.la
+LIBCRYPTOCONDITIONS=cryptoconditions/libcryptoconditions_core.a
 LIBSNARK=snark/libsnark.a
 LIBUNIVALUE=univalue/libunivalue.la
 LIBZCASH=libzcash.a

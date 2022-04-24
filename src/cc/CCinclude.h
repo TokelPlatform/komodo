@@ -610,8 +610,6 @@ CTxOut MakeCC1vout(uint8_t evalcode,CAmount nValue,CPubKey pk, std::vector<std::
 /// @returns vout object
 CTxOut MakeCC1of2vout(uint8_t evalcode,CAmount nValue,CPubKey pk,CPubKey pk2, std::vector<std::vector<unsigned char>>* vData = NULL);
 
-bool CCtoAnon(const CC *cond);
-
 CTxOut MakeCC1voutMixed(uint8_t evalcode, CAmount nValue, CPubKey pk, std::vector<unsigned char> *vData = NULL);
 CTxOut MakeCC1of2voutMixed(uint8_t evalcode, CAmount nValue, CPubKey pk1, CPubKey pk2, std::vector<unsigned char> *vData = NULL);
 
@@ -1089,6 +1087,9 @@ bool IsBlockHashInActiveChain(uint256 hashBlock);
 bool SubcallCCValidate(Eval* eval, uint8_t evalcode, const CTransaction& ctx, int32_t nIn);
 
 extern bool fUnspentCCIndex;  // if unspent cc index enabled
+
+/// decode condition to UniValue for decoderawtransaction
+UniValue CCDecodeMixedMode(const CC *cond);
 
 /// @private forward decl
 struct CLockedInMemoryUtxos;

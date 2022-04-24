@@ -41,6 +41,8 @@
 #endif
 
 #include "komodo_defs.h"
+#include "cc/CCinclude.h"
+
 #include <stdint.h>
 #include <boost/assign/list_of.hpp>
 #include <univalue.h>
@@ -71,6 +73,16 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
         a.push_back(EncodeDestination(addr));
     }
     out.push_back(Pair("addresses", a));
+
+    // add cc decoded
+    if (scriptPubKey.IsPayToCCV2())  {
+        std::vector<uint8_t> ccdata = scriptPubKey.GetCCV2SPK();
+        CC* cond = cc_readConditionBinaryMaybeMixed(ccdata.data(), ccdata.size());
+        if (cond) {
+            out.push_back(Pair("condition", CCDecodeMixedMode(cond)));
+            cc_free(cond);
+        }
+    }
 }
 
 UniValue TxJoinSplitToJSON(const CTransaction& tx) {

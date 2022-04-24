@@ -24,6 +24,7 @@
 #include "rpc/protocol.h"
 #include "util.h"
 #include "utilstrencodings.h"
+#include "komodo_globals.h"
 
 #include <boost/filesystem/operations.hpp>
 #include <stdio.h>
@@ -31,8 +32,8 @@
 #include <event2/buffer.h>
 #include <event2/keyvalq_struct.h>
 #include "support/events.h"
-uint16_t BITCOIND_RPCPORT = 7771;
-char ASSETCHAINS_SYMBOL[65];
+//uint16_t BITCOIND_RPCPORT = 7771;
+//char ASSETCHAINS_SYMBOL[65];
 
 #include <univalue.h>
 

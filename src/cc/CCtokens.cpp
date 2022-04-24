@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright © 2014-2019 The SuperNET Developers.                             *
+ * Copyright © 2014-2022 The SuperNET Developers.                             *
  *                                                                            *
  * See the AUTHORS, DEVELOPER-AGREEMENT and LICENSE files at                  *
  * the top-level directory of this distribution for the individual copyright  *
@@ -641,29 +641,6 @@ CAmount TokensV2::CheckTokensvout(struct CCcontract_info *cp, Eval* eval, const 
 	return(0);  // normal or non-token2 vout
 }
 
-
-/*static CPubKey GetTokenOriginatorPubKey(CScript scriptPubKey) {
-
-    uint8_t funcId;
-    uint256 tokenid;
-    std::vector<CPubKey> voutTokenPubkeys;
-    std::vector<vscript_t> oprets;
-
-    if ((funcId = DecodeTokenOpRetV1(scriptPubKey, tokenid, voutTokenPubkeys, oprets)) != 0) {
-        CTransaction tokenbasetx;
-        uint256 hashBlock;
-
-        if (myGetTransaction(tokenid, tokenbasetx, hashBlock) && tokenbasetx.vout.size() > 0) {
-            vscript_t vorigpubkey;
-            std::string name, desc;
-            std::vector<vscript_t> oprets;
-            if (DecodeTokenCreateOpRetV1(tokenbasetx.vout.back().scriptPubKey, vorigpubkey, name, desc, oprets) != 0)
-                return pubkey2pk(vorigpubkey);
-        }
-    }
-    return CPubKey(); //return invalid pubkey
-}*/
-
 // old token tx validation entry point
 // NOTE: opreturn decode v1 functions (DecodeTokenCreateOpRetV1 DecodeTokenOpRetV1) understands both old and new opreturn versions
 bool TokensValidate(struct CCcontract_info *cp, Eval* eval, const CTransaction &tx, uint32_t nIn)
@@ -693,84 +670,6 @@ static bool report_validation_error(const std::string &func, Eval* eval, const C
     return !eval->state.IsValid() ? false/*error state already set*/ : eval->Invalid(errorStr) /* set error state and exit*/;     
 }
 
-// checking creation txns is available with cryptocondition v2 mixed mode
-// therefore do not forget to check that the creation tx does not have cc inputs!
-/*
-static bool CheckTokensV2CreateTx(struct CCcontract_info *cp, Eval* eval, const CTransaction &tx)
-{
-    std::vector<CPubKey> vpksdummy;
-    std::vector<vscript_t> oprets;
-    vuint8_t vorigpk;
-    std::string name, description;
-    uint256 tokenid;
-
-    // check it is a create tx
-    int32_t createNum = 0;
-    int32_t transferNum = 0;
-    for(int32_t i = 0; i < tx.vout.size(); i ++)  
-    {
-        if (tx.vout[i].scriptPubKey.IsPayToCryptoCondition() && tx.vout[i].scriptPubKey.SpkHasEvalcodeCCV2(EVAL_TOKENSV2))   
-        {
-            CScript opret;
-            bool isLastVoutOpret;
-            if (!(opret = GetCCDropAsOpret(tx.vout[v].scriptPubKey)).empty())
-            {
-                isLastVoutOpret = false;    
-            }
-            else
-            {
-                isLastVoutOpret = true;
-                opret = tx.vout.back().scriptPubKey;
-            }
-
-            uint8_t funcid = TokensV2::DecodeTokenOpRet(opret, tokenid, vpksdummy, oprets);
-            if (IsTokenCreateFuncid(funcid))    {
-                createNum ++;
-                if (createNum > 1)  
-                    return report_validation_error(__func__, eval, tx, "can't have more than 1 create vout"); 
-
-                TokensV2::DecodeTokenCreateOpRet(opret, vorigpk, name, description, oprets);
-
-                // check this is really creator
-                CPubKey origpk = pubkey2pk(vorigpk);
-                if (TotalPubkeyNormalInputs(eval, tx, origpk) == 0)
-                    return report_validation_error(__func__, eval, tx, "no vins with creator pubkey"); 
-            }
-            else if(IsTokenTransferFuncid(funcid))
-                transferNum ++;
-        }
-    }
-    
-    if (createNum > 0 && transferNum > 0)  
-        return report_validation_error(__func__, eval, tx, "can't have both create and transfer vouts"); 
-    
-    if (createNum == 0 && transferNum == 0) 
-    {
-        // if no OP_DROP vouts check the last vout opreturn:
-        if (IsTokenCreateFuncid(TokensV2::DecodeTokenOpRet(tx.vout.back().scriptPubKey, tokenid, vpksdummy, oprets))) 
-        {
-            TokensV2::DecodeTokenCreateOpRet(tx.vout.back().scriptPubKey, vorigpk, name, description, oprets);
-
-            // check this is really creator
-            CPubKey origpk = pubkey2pk(vorigpk);
-            if (TotalPubkeyNormalInputs(eval, tx, origpk) == 0)
-                return report_validation_error(__func__, eval, tx, "no vins with creator pubkey"); 
-            createNum ++;
-        }
-    }
-
-    // check that creation tx does not have my cc vins
-    if (createNum > 0)  {
-        bool hasMyccvin = false;
-        std::for_each (tx.vin.begin(), tx.vin.end(), [&](const CTxIn &vin){ cp->ismyvin(vin.scriptSig) ? hasMyccvin = true : hasMyccvin = hasMyccvin; });
-        if (hasMyccvin) 
-            return report_validation_error(__func__, eval, tx, "creation tx can't have token vins"); 
-        return true;
-    }
-    return false;
-}
-*/
-
 // token 2 cc validation entry point
 bool Tokensv2Validate(struct CCcontract_info *cp, Eval* eval, const CTransaction &tx, uint32_t nIn) 
 { 
@@ -782,13 +681,6 @@ bool Tokensv2Validate(struct CCcontract_info *cp, Eval* eval, const CTransaction
     	return eval->Invalid("only one opreturn supported");
 
     std::string errorStr;
-
-    // these checks now are in TokensExactAmounts
-    //if (CheckTokensV2CreateTx(cp, eval, tx)) //found create tx and it is valid 
-    //    return true;
-    //if (eval->state.IsInvalid())  // create tx is invalid
-    //    return false;
-
     // check token vouts (token txns could have multiple tokenids for multiple token transfer)
     if (!TokensExactAmounts<TokensV2>(true, cp, eval, tx, errorStr)) 
         return report_validation_error(__func__, eval, tx, errorStr); 
@@ -844,18 +736,6 @@ UniValue TokenList()
 
 	return(result);
 }
-
-/*bool TokensExactAmounts(bool goDeeper, struct CCcontract_info *cp, Eval* eval, const CTransaction &tx, std::string &errorStr)
-{
-    return TokensExactAmounts<TokensV1>(goDeeper, cp, eval, tx, errorStr);
-}*/
-
-// some v2 wrappers for template functions
-
-/*std::string CreateTokenLocal2(CAmount txfee, CAmount tokensupply, std::string name, std::string description, vscript_t nonfungibleData)
-{
-    return CreateTokenLocal<TokensV2>(txfee, tokensupply, name, description, nonfungibleData);
-}*/
 
 UniValue TokenV2List(const UniValue &params)
 {

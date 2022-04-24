@@ -20,6 +20,7 @@
 #include "amount.h"
 #include "rpc/server.h"
 #include "rpc/protocol.h"
+#include "key_io.h"
 
 #include "../wallet/crypter.h"
 #include "../wallet/rpcwallet.h"
@@ -65,7 +66,7 @@ UniValue tokenv2indexkey(const UniValue& params, bool fHelp, const CPubKey& mypk
 {
     if (fHelp || params.size() != 1)
         throw runtime_error("tokenv2indexkey pubkey\n"
-                            "returns address index key for pubkey.\n"
+                            "returns tokens index keys for pubkey.\n"
                             "It can be used with getaddressutxos getaddresstxids rpcs to list tokens outputs on this pubkey\n");
 
     struct CCcontract_info *cp,C; 
@@ -78,9 +79,11 @@ UniValue tokenv2indexkey(const UniValue& params, bool fHelp, const CPubKey& mypk
     if (!pk.IsValid())
         throw runtime_error("invalid pubkey\n");
 
-    char address[KOMODO_ADDRESS_BUFSIZE];
-    GetCCaddress(cp, address, pk, true);
-    return address;  
+    UniValue result(UniValue::VARR);
+    std::vector<std::string> tokenindexkeys = TokensV2::GetTokenIndexKeys(pk);
+    for (auto const tokenindexkey : tokenindexkeys)
+        result.push_back(tokenindexkey);
+    return result;  
 }
 
 UniValue assetsv2indexkey(const UniValue& params, bool fHelp, const CPubKey& mypk)
@@ -269,7 +272,8 @@ static UniValue tokenbalance(const std::string& name, const UniValue& params, bo
     else
         vpubkey = Mypubkey();
 
-    CAmount balance = GetTokenBalance<V>(pubkey2pk(vpubkey), tokenid, false);
+    CPubKey pk = pubkey2pk(vpubkey);
+    CAmount balance = GetTokenBalance<V>(pk, tokenid, false);
 
 	if (CCerror.empty()) {
 		char destaddr[KOMODO_ADDRESS_BUFSIZE];
@@ -277,8 +281,11 @@ static UniValue tokenbalance(const std::string& name, const UniValue& params, bo
         cp = CCinit(&C, V::EvalCode());
 
 		result.push_back(Pair("result", "success"));
-		if (GetCCaddress(cp, destaddr, pubkey2pk(vpubkey), V::IsMixed()) != 0)
-			result.push_back(Pair("CCaddress", destaddr));
+        
+        std::vector<std::string> tokenindexkeys = V::GetTokenIndexKeys(pk);
+        UniValue uIndexkeys(UniValue::VARR);
+        for (auto const &tokenindexkey : tokenindexkeys) uIndexkeys.push_back(tokenindexkey);
+		result.push_back(Pair("CCIndexKeys", uIndexkeys));
 
 		result.push_back(Pair("tokenid", params[0].get_str()));
 		result.push_back(Pair("balance", (int64_t)balance));
@@ -495,110 +502,53 @@ static UniValue tokentransfer(const std::string& name, const UniValue& params, b
     
     CCerror.clear();
 
-    if (fHelp || (params.size() != 3 && params.size() != 1))
-        throw runtime_error(name + " tokenid destpubkey amount\n" +
-                            name + " '{ \"tokenid\":\"<tokenid>\", \"ccaddressMofN\":\"<address>\", \"destpubkeys\": [ \"<pk1>\", \"<pk2>\", ... ], \"M\": <value>, \"amount\": <amount> }'\n"
-                            "tokenid - token creation id\n"
-                            "ccaddressMofN - optional cc address of MofN utxos to spend, if not present spending is from mypk\n"
-                            "destpubkey, destpubkey1 ... destpubkeyN - destination pubkeys (max = 128)\n"
-                            "M - required min of signatures, integer\n\n"
-                            "amount - token amount to send in satoshi, int64\n"
-                            "Note, that MofN supported only for tokens v2\n\n");
+    if (fHelp || params.size() != 3)
+        throw runtime_error(
+            name + " tokenid destination amount\n" 
+            "To spend 1of1 token utxo and send to 1of1 destination. Params:\n"
+            "   tokenid - token creation id\n"
+            "   destination - destination pubkey or R-address\n"
+            "   amount - token amount to send, in satoshi\n\n");
 
-    if (ensure_CCrequirements(V::EvalCode(), remotepk.IsValid()) < 0)
+    if (ensure_CCrequirements(V::EvalCode()) < 0)
         throw runtime_error(CC_REQUIREMENTS_MSG);
     
     if (!remotepk.IsValid() && !EnsureWalletIsAvailable(false))
         throw runtime_error("wallet is required");    
-    LOCK2(cs_main, pwalletMain->cs_wallet);   // remote call not supported yet
+    LOCK2(cs_main, pwalletMain->cs_wallet);   // remote call not supported, only local wallet
+  
+    uint256 tokenid = Parseuint256((char *)params[0].get_str().c_str());
+    if( tokenid.IsNull() )    
+        return MakeResultError("invalid tokenid");
     
-    if (params.size() == 3)
-    {
-        uint256 tokenid = Parseuint256((char *)params[0].get_str().c_str());
-        if( tokenid == zeroid )    
-            return MakeResultError("invalid tokenid");
-        
-        std::vector<CPubKey> pks;
-        vuint8_t vpubkey(ParseHex(params[1].get_str().c_str()));
-        if (vpubkey.size() != CPubKey::COMPRESSED_PUBLIC_KEY_SIZE) 
-            return MakeResultError("invalid destpubkey");    
-        pks.push_back(pubkey2pk(vpubkey));
+    std::vector<CTxDestination> dests;
 
-        CAmount amount = atoll(params[2].get_str().c_str()); 
-        if( amount <= 0 )    
-            return MakeResultError("amount must be positive");
-        hex = TokenTransfer<V>(0, tokenid, 1, pks, amount);
-        RETURN_IF_ERROR(CCerror);
-        if (!hex.empty())
-            return MakeResultSuccess(hex);
-        else
-            return MakeResultError("could not create transfer token transaction");
-    }
+    CTxDestination dest;
+    vuint8_t vpubkey(ParseHex(params[1].get_str()));
+    if (vpubkey.size() == CPubKey::COMPRESSED_PUBLIC_KEY_SIZE && CPubKey(vpubkey).IsValid()) 
+        dest = CPubKey(vpubkey);    
+    else 
+        dest = DecodeDestination(params[1].get_str());
+    if (dest.which() == TX_PUBKEYHASH && !CCUpgrades::IsUpgradeActive(chainActive.LastTip()->GetHeight() + 1, CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))
+        return MakeResultError("destination as address not active yet");
+    if (dest.which() != TX_PUBKEYHASH && dest.which() != TX_PUBKEY)
+        return MakeResultError("invalid destination pubkey or address");
+        
+    // after subver_1 upgrade only addresses always will be used as destination, pubkeys are converted to addresses
+    if (dest.which() == TX_PUBKEY && CCUpgrades::IsUpgradeActive(chainActive.LastTip()->GetHeight() + 1, CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))
+        dests.push_back(boost::get<CPubKey>(dest).GetID());
     else
-    {
-        if (V::EvalCode() != EVAL_TOKENSV2)
-            return MakeResultError("MofN transfer is supported only for tokens v2\n");
+        dests.push_back(dest);  // address or pubkey
 
-        UniValue jsonParams(UniValue::VOBJ);
-        if (params[0].getType() == UniValue::VOBJ)
-            jsonParams = params[0].get_obj();
-        else if (params[0].getType() == UniValue::VSTR)  // json in quoted string '{...}'
-            jsonParams.read(params[0].get_str().c_str());
-        if (jsonParams.getType() != UniValue::VOBJ)
-            return MakeResultError("parameter 1 must be object\n");
-
-        uint256 tokenid = Parseuint256(jsonParams["tokenid"].get_str().c_str());
-        if( tokenid == zeroid )    
-            return MakeResultError("invalid tokenid");
-        
-        std::string ccaddressMofN;
-        if (!jsonParams["ccaddressMofN"].isNull()) {
-            ccaddressMofN = jsonParams["ccaddressMofN"].get_str();
-            if (!CBitcoinAddress(ccaddressMofN).IsValid())        
-                return MakeResultError("invalid ccaddressMofN\n");
-        }
-
-        std::vector<CPubKey> pks;
-        UniValue udestpks = jsonParams["destpubkeys"];
-        if (!udestpks.isArray())
-            return MakeResultError("destpubkeys must be an array\n");
-        
-        if (udestpks.size() > 128)
-            return MakeResultError("destpubkeys num is limited by 128\n");
-
-        for (int i = 0; i < udestpks.size(); i ++) {
-            vuint8_t vpubkey(ParseHex(udestpks[i].get_str().c_str()));
-            if (vpubkey.size() != CPubKey::COMPRESSED_PUBLIC_KEY_SIZE) 
-                return MakeResultError(std::string("invalid destpubkey #") + std::to_string(i+1));
-            pks.push_back(CPubKey(vpubkey));
-        }
-        int M = jsonParams["M"].get_int();
-        if (M > 128)
-            return MakeResultError("M is limited by 128\n");
-        if (M > pks.size())
-            return MakeResultError("M could not be more than dest pubkeys\n");
-
-        CAmount amount = jsonParams["amount"].get_int64(); 
-        if( amount <= 0 )    
-            return MakeResultError("amount must be positive");
-
-        if (ccaddressMofN.empty()) {
-            hex = TokenTransfer<V>(0, tokenid, M, pks, amount);
-            RETURN_IF_ERROR(CCerror);
-            if (!hex.empty())
-                return MakeResultSuccess(hex);
-            else
-                return MakeResultError("could not create transfer token transaction");
-        }
-        else {
-            UniValue transferred = TokenTransferExt<V>(CPubKey(), 0, tokenid, ccaddressMofN.c_str(), {}, (uint8_t)M, pks, amount, false);
-            RETURN_IF_ERROR(CCerror);
-            if (!ResultGetTx(transferred).empty())
-                return transferred;
-            else
-                return MakeResultError("could not create transfer token transaction");
-        }     
-    }
+    CAmount amount = atoll(params[2].get_str().c_str()); 
+    if( amount <= 0 )    
+        return MakeResultError("amount must be positive");
+    hex = TokenTransferDest<V>(0, tokenid, 1, dests, amount);
+    RETURN_IF_ERROR(CCerror);
+    if (!hex.empty())
+        return MakeResultSuccess(hex);
+    else
+        return MakeResultError("could not create transfer token transaction");
 }
 
 UniValue tokentransfer(const UniValue& params, bool fHelp, const CPubKey& remotepk)
@@ -691,43 +641,94 @@ UniValue tokenv2transfermany(const UniValue& params, bool fHelp, const CPubKey& 
     return tokentransfermany<TokensV2>("tokenv2transfermany", params, fHelp, remotepk);
 }
 
-UniValue tokenconvert(const UniValue& params, bool fHelp, const CPubKey& mypk)
-{
-    UniValue result(UniValue::VOBJ); std::string hex; int32_t evalcode; int64_t amount; uint256 tokenid;
-    CCerror.clear();
-    if (fHelp || params.size() != 4)
-        throw runtime_error("tokenconvert evalcode tokenid pubkey amount\n");
-    if (ensure_CCrequirements(EVAL_ASSETS) < 0)
-        throw runtime_error(CC_REQUIREMENTS_MSG);
-    const CKeyStore& keystore = *pwalletMain;
-    if (!EnsureWalletIsAvailable(false))
-        throw runtime_error("wallet is required");
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    evalcode = atoi(params[0].get_str().c_str());
-    tokenid = Parseuint256((char *)params[1].get_str().c_str());
-    std::vector<unsigned char> pubkey(ParseHex(params[2].get_str().c_str()));
-    //amount = atol(params[3].get_str().c_str());
-	amount = atoll(params[3].get_str().c_str()); // dimxy changed to prevent loss of significance
-    if( tokenid == zeroid )
-        return MakeResultError("invalid tokenid");
 
-    if( amount <= 0 )
+UniValue tokenv2transferMofN(const UniValue& params, bool fHelp, const CPubKey& remotepk)
+{
+    UniValue result(UniValue::VOBJ); 
+    std::string hex; 
+    
+    CCerror.clear();
+
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            std::string(__func__) + " '{ \"tokenid\":\"<tokenid>\", \"ccaddressMofN\":\"<address>\", \"destpubkeys\": [ \"<pk1>\", \"<pk2>\", ... ], \"M\": <value>, \"amount\": <amount> }'\n"
+            "To spend MofN token utxo and send to MofN destination pubkeys. Params:\n"
+            "   tokenid - token creation id\n"
+            "   ccaddressMofN - optional cc address of MofN utxos to spend, if not present spending is from mypk\n"
+            "   destpubkey, destpubkey1 ... destpubkeyN - destination pubkeys (max = 128)\n"
+            "   M - required min number of signatures\n"
+            "   amount - token amount to send, in satoshi\n"
+            "Note, that MofN supported only for tokens v2\n\n");
+
+    if (ensure_CCrequirements(TokensV2::EvalCode()) < 0)
+        throw runtime_error(CC_REQUIREMENTS_MSG);
+    
+    if (!remotepk.IsValid() && !EnsureWalletIsAvailable(false))
+        throw runtime_error("wallet is required");    
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);   // remote rpc call not supported, only local wallet
+
+    UniValue jsonParams(UniValue::VOBJ);
+    if (params[0].getType() == UniValue::VOBJ)
+        jsonParams = params[0].get_obj();
+    else if (params[0].getType() == UniValue::VSTR)  // json in quoted string '{...}'
+        jsonParams.read(params[0].get_str().c_str());
+    if (jsonParams.getType() != UniValue::VOBJ)
+        return MakeResultError("parameter 1 must be object\n");
+
+    uint256 tokenid = Parseuint256(jsonParams["tokenid"].get_str().c_str());
+    if( tokenid == zeroid )    
+        return MakeResultError("invalid tokenid");
+    
+    std::string ccaddressMofN;
+    if (!jsonParams["ccaddressMofN"].isNull()) {
+        ccaddressMofN = jsonParams["ccaddressMofN"].get_str();
+        if (!CBitcoinAddress(ccaddressMofN).IsValid())        
+            return MakeResultError("invalid ccaddressMofN\n");
+    }
+
+    std::vector<CPubKey> pks;
+    UniValue udestpks = jsonParams["destpubkeys"];
+    if (!udestpks.isArray())
+        return MakeResultError("destpubkeys must be an array\n");
+    
+    if (udestpks.size() > 128)
+        return MakeResultError("destpubkeys num is limited by 128\n");
+
+    for (int i = 0; i < udestpks.size(); i ++) {
+        vuint8_t vpubkey(ParseHex(udestpks[i].get_str().c_str()));
+        if (vpubkey.size() != CPubKey::COMPRESSED_PUBLIC_KEY_SIZE) 
+            return MakeResultError(std::string("invalid destpubkey #") + std::to_string(i+1));
+        pks.push_back(CPubKey(vpubkey));
+    }
+    int M = jsonParams["M"].get_int();
+    if (M > 128)
+        return MakeResultError("M is limited by 128\n");
+    if (M > pks.size())
+        return MakeResultError("M could not be more than dest pubkeys\n");
+
+    CAmount amount = jsonParams["amount"].get_int64(); 
+    if( amount <= 0 )    
         return MakeResultError("amount must be positive");
 
-	return MakeResultError("deprecated");
-
-/*    hex = AssetConvert(0,tokenid,pubkey,amount,evalcode);
-    if (amount > 0) {
-        if ( hex.size() > 0 )
-        {
-            result.push_back(Pair("result", "success"));
-            result.push_back(Pair("hex", hex));
-        } else ERR_RESULT("couldnt convert tokens");
-    } else {
-        ERR_RESULT("amount must be positive");
+    if (ccaddressMofN.empty()) {
+        hex = TokenTransfer<TokensV2>(0, tokenid, M, pks, amount);
+        RETURN_IF_ERROR(CCerror);
+        if (!hex.empty())
+            return MakeResultSuccess(hex);
+        else
+            return MakeResultError("could not create transfer token transaction");
     }
-    return(result); */
+    else {
+        UniValue transferred = TokenTransferExt<TokensV2>(CPubKey(), 0, tokenid, { ccaddressMofN }, {}, (uint8_t)M, pks, amount, false);
+        RETURN_IF_ERROR(CCerror);
+        if (!ResultGetTx(transferred).empty())
+            return transferred;
+        else
+            return MakeResultError("could not create transfer token transaction");
+    }     
 }
+
 
 template <class T, class A>
 UniValue tokenbid(const std::string& name, const UniValue& params, bool fHelp, const CPubKey& remotepk)
@@ -1161,6 +1162,149 @@ UniValue tokenv2addccinputs(const UniValue& params, bool fHelp, const CPubKey& r
     return result;
 }
 
+
+// cc tx creation helper rpc (test)
+UniValue CreateCCEvalTx(const CPubKey &mypk, CAmount txfee, const UniValue &txjson)
+{
+    CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+	struct CCcontract_info *cpEvals, C; 
+
+	CAmount inputs = 0LL;
+	CAmount outputs = 0LL;
+
+
+    cpEvals = CCinit(&C, EVAL_TOKENSV2);   
+    if (txfee == 0)
+        txfee = 10000;
+
+    UniValue jvins = txjson[std::string("vins")];
+    if (!jvins.isArray()) { CCerror = "no or incorrect 'vins' array"; return NullUniValue; }
+    UniValue jvouts = txjson[std::string("vouts")];
+    if (!jvouts.isArray()) { CCerror = "no or incorrect 'vouts' array"; return NullUniValue; }
+
+    for (int i = 0; i < jvins.size(); i ++)  {
+        uint256 vintxid = Parseuint256(jvins[i][std::string("hash")].get_str().c_str());
+        //std::cerr << __func__ << " getting n" << std::endl;
+        int32_t vini = jvins[i][std::string("n")].get_int();
+        //std::cerr << __func__ << " got n" << std::endl;
+        uint256 hashBlock; 
+	    CTransaction vintx; 
+        if (!myGetTransaction(vintxid, vintx, hashBlock)) { CCerror = "could not load vin tx:" + vintxid.GetHex(); return NullUniValue; }
+        inputs += vintx.vout[vini].nValue;
+
+        mtx.vin.push_back(CTxIn(vintxid, vini));
+    }
+
+    for (int i = 0; i < jvouts.size(); i ++)  {
+        UniValue uniAmount;  
+        if (!(uniAmount = jvouts[i][std::string("nValue")]).empty())  { CCerror = "no nValue in vout"; return NullUniValue; }
+        //std::cerr << __func__ << " getting nValue " << uniAmount.write() << std::endl;
+        CAmount nValue = uniAmount.get_int64();
+        //std::cerr << __func__ << " got nValue" << std::endl;
+        UniValue uniDest;
+        UniValue uniCC;
+        bool hasPkh = false, hasCC = false;
+        
+        if (!(uniDest = jvouts[i][std::string("Destination")]).isNull())  {
+            CTxDestination dest = DecodeDestination(uniDest.get_str());
+            //if (dest.which() != TX_PUBKEYHASH) { CCerror = "only address destinations supported"; return NullUniValue; }
+            CScript script = GetScriptForDestination(dest);
+            if (script.empty()) { CCerror = "could not get script for normal destination"; return NullUniValue; }
+            mtx.vout.push_back(CTxOut(nValue, script));
+            hasPkh = true;
+        }
+        else if (!(uniCC = jvouts[i][std::string("cc")]).isNull())  {
+            std::string ccstr = uniCC.write();
+            char ccerr[128];
+            CC *cond = cc_conditionFromJSONString(ccstr.c_str(), ccerr);
+            if (!cond)  { CCerror = strprintf("could parse cc: %s", ccerr); return NullUniValue; }
+
+            CScript script;
+            if (!jvouts[i]["opdrop"].isNull()) {
+                script = CCPubKey(cond, CC_OLD_V1_SUBVER);
+                std::vector<vuint8_t> vvopdrop = { ParseHex(jvouts[i]["opdrop"].get_str()) };
+                COptCCParams ccp = COptCCParams(COptCCParams::VERSION_2, EVAL_TOKENSV2, 1, 1, { CPubKey(ParseHex(jvouts[i]["pubkey"].get_str())) }, vvopdrop);
+                script << ccp.AsVector() << OP_DROP;
+            }
+            else
+                script = CCPubKey(cond, CC_MIXED_MODE_SECHASH_SUBVER_1); // use subver 1
+            if (script.empty()) { CCerror = "could not get script for cc"; return NullUniValue; }
+            mtx.vout.push_back(CTxOut(nValue, script));
+            hasCC = true;
+        }
+        else {
+            CCerror = strprintf("invalid destination type for vout %d", i); return NullUniValue;
+        }
+        if (hasPkh && hasCC)  { CCerror = "could not have both normal and cc destinations for one vout"; return NullUniValue; }
+        outputs += mtx.vout[i].nValue;
+    }
+
+    if (inputs < outputs + txfee) {
+        if (AddNormalinputs(mtx, mypk, outputs + txfee - inputs, 0x10000) <= 0) { CCerror = "could not get normal inputs"; return NullUniValue; }
+    }
+
+    const uint8_t nullpriv[32] = {'\0'};
+    const uint8_t dontsign[32]  = { 0xff };
+
+    // parse probe conds: 
+    UniValue jvinccs = txjson[std::string("vinccs")];
+    if (!jvinccs.isArray()) { CCerror = "no or incorrect 'vinccs' array"; return NullUniValue; }
+    for (int i = 0; i < jvinccs.size(); i ++)  {
+        UniValue uniCC;
+        if (!(uniCC = jvinccs[i][std::string("cc")]).isNull())  {
+            std::string ccstr = uniCC.write();
+            char ccerr[128];
+            CCwrapper wrcond( cc_conditionFromJSONString(ccstr.c_str(), ccerr) );
+            if (!wrcond.get())  { CCerror = strprintf("could parse vin cc: %s", ccerr); ; return NullUniValue; }
+            //std::cerr << __func__ << " getting sign" << std::endl;
+            bool bSign = jvinccs[i][std::string("sign")].get_bool();
+            //std::cerr << __func__ << " got sign" << std::endl;
+            CCAddVintxCond(cpEvals, wrcond, bSign ? nullpriv : dontsign);  // add a probe cond how to spend vintx cc utxo
+        }
+    }
+
+    UniValue sigData = FinalizeCCV2Tx(false, FINALIZECCTX_NO_CHANGE_WHEN_DUST, cpEvals, mtx, mypk, txfee, CScript()); 
+    if (!ResultHasTx(sigData))
+        return MakeResultError("Could not finalize tx");
+    return sigData;
+}
+
+UniValue createccevaltx(const UniValue& params, bool fHelp, const CPubKey& remotepk)
+{
+    UniValue result(UniValue::VOBJ); 
+
+    if (fHelp || params.size() != 1)
+        throw std::runtime_error(std::string(__func__) + " 'json'\n"
+        "create and sign transaction with cc evals. The param is a json object with tx vin vout props:\n"
+        "'{ \"vins\": [...], \"vouts\": [...], \"vinccs\": [...] }'\n"
+        "'vins' - vin array in the format: '\"vins\":[{\"hash\": prev-tx-hash, \"n\": prev-utxo-n }, {...}]'\n"
+        "'vouts' - vout array in the format: '\"vouts\":[{\"nValue\": satoshis, \"Destination\": address-or-pubkey, \"cc\": condition-in-json }, {...}]'\n"
+        "'vinccs' - array of cc used for spending cc utxos, the format is: '\"vinccs\": [{ \"cc\": condition-in-json, \"sign\": true/false }, {..}]'\n\n");
+    if (ensure_CCrequirements(EVAL_TOKENSV2) < 0)
+        throw std::runtime_error(CC_REQUIREMENTS_MSG);
+
+    if (!remotepk.IsValid() && !EnsureWalletIsAvailable(false))
+        throw std::runtime_error("wallet is required");
+    CONDITIONAL_LOCK2(cs_main, pwalletMain->cs_wallet, !remotepk.IsValid());
+    
+    UniValue jsonParams(UniValue::VOBJ);
+    if (params[0].getType() == UniValue::VOBJ)
+        jsonParams = params[0].get_obj();
+    else if (params[0].getType() == UniValue::VSTR)  // json in quoted string '{...}'
+        jsonParams.read(params[0].get_str().c_str());
+    if (jsonParams.getType() != UniValue::VOBJ)
+        return MakeResultError("parameter must be an object\n");
+
+    CPubKey mypk;
+    SET_MYPK_OR_REMOTE(mypk, remotepk);
+
+    result = CreateCCEvalTx(mypk, 0, jsonParams);
+    RETURN_IF_ERROR(CCerror);
+    return result;
+}
+
+
+
 static const CRPCCommand commands[] =
 { //  category              name                actor (function)        okSafeMode
   //  -------------- ------------------------  -----------------------  ----------
@@ -1188,6 +1332,7 @@ static const CRPCCommand commands[] =
     { "tokens v2",       "tokenv2transfer",     &tokenv2transfer,     true },
     { "tokens",       "tokentransfermany",   &tokentransfermany,     true },
     { "tokens v2",       "tokenv2transfermany", &tokenv2transfermany,     true },
+    { "tokens v2",       "tokenv2transferMofN",     &tokenv2transferMofN,     true },
     { "tokens",       "tokenbid",         &tokenbid,          true },
     { "tokens",       "tokencancelbid",   &tokencancelbid,    true },
     { "tokens",       "tokenfillbid",     &tokenfillbid,      true },
@@ -1203,13 +1348,15 @@ static const CRPCCommand commands[] =
     { "tokens v2",       "tokenv2cancelask",   &tokenv2cancelask,    true },
     { "tokens v2",       "tokenv2fillask",     &tokenv2fillask,      true },
     //{ "tokens",       "tokenfillswap",    &tokenfillswap,     true },
-    { "tokens",       "tokenconvert", &tokenconvert, true },
+    //{ "tokens",       "tokenconvert", &tokenconvert, true },
     { "ccutils",       "addccv2signature", &addccv2signature, true },
     { "tokens",       "tokencreatetokel",      &tokencreatetokel,       true },
     { "tokens v2",       "tokenv2createtokel",    &tokenv2createtokel,       true },
     { "tokens",       "tokeninfotokel",        &tokeninfotokel,         true },
     { "tokens v2",       "tokenv2infotokel",      &tokenv2infotokel,         true },
     { "nspv",       "tokenv2addccinputs",      &tokenv2addccinputs,         true },
+    { "nspv",       "createccevaltx",      &createccevaltx,         true },
+
 };
 
 void RegisterTokensRPCCommands(CRPCTable &tableRPC)

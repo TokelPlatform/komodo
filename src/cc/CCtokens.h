@@ -206,6 +206,10 @@ CC *MakeTokensv2CCcond1of2(uint8_t evalcode, uint8_t evalcode2, CPubKey pk1, CPu
 /// @returns cryptocondition object. Must be disposed with cc_free function when not used any more
 CC *MakeTokensv2CCcondMofN(uint8_t evalcode1, uint8_t evalcode2, uint8_t M, std::vector<CPubKey> pks);
 
+/// same for CTxDestination which may be either CPubKey or CKeyID
+CC *MakeTokensv2CCcondMofNDest(uint8_t evalcode1, uint8_t evalcode2, uint8_t M, std::vector<CTxDestination> dests);
+
+
 /// Creates a token transaction output with a cryptocondition that allows to spend it by one key. 
 /// The resulting vout will have two eval codes (EVAL_TOKENSV2 and evalcode parameter value).
 /// The returned output should be added to a transaction vout array.
@@ -272,8 +276,18 @@ CTxOut MakeTokensCC1of2voutMixed(uint8_t evalcode, uint8_t evalcode2, CAmount nV
 /// @see CCcontract_info
 CTxOut MakeTokensCCMofNvoutMixed(uint8_t evalcode1, uint8_t evalcode2, CAmount nValue, uint8_t M, const std::vector<CPubKey> & pks, vscript_t* pvData = nullptr);
 
+/// same as @see MakeTokensCCMofNvoutMixed but for CPubKeys or CKeyIDs
+CTxOut MakeTokensCCMofNDestVoutMixed(uint8_t evalcode1, uint8_t evalcode2, CAmount nValue, uint8_t M, const std::vector<CTxDestination> &dests, vscript_t* pvData);
+
 UniValue TokenList();
 UniValue TokenV2List(const UniValue &params);
+
+/// @private 
+std::vector<std::string> GetTokenV1IndexKeys(const CPubKey &pk);
+/// @private 
+std::vector<std::string> GetTokenV2IndexKeys(const CPubKey &pk);
+/// @private 
+std::vector<CCwrapper> GetTokenV2Conds(const CPubKey &pk);
 
 inline bool IsTokenCreateFuncid(uint8_t funcid) { return funcid == 'c'; }
 inline bool IsTokenTransferFuncid(uint8_t funcid) { return funcid == 't'; }
@@ -360,11 +374,25 @@ public:
             return ::MakeTokensCC1vout(evalcode1, evalcode2, nValue, pks[0], pvvData);
         else
             return CTxOut();
-    }    
+    }   
+
+    static CTxOut MakeTokensCCMofNDestVout(uint8_t evalcode1, uint8_t evalcode2, CAmount nValue, uint8_t M, const std::vector<CTxDestination> &dests, std::vector<vscript_t>* pvvData = NULL)
+    {
+        // convert to pubkey (no other dest support in cc v1)
+        std::vector<CPubKey> pks;
+        for (auto const &dest : dests)
+            if (dest.which() == TX_PUBKEY)
+                pks.push_back(boost::get<CPubKey>(dest));
+        return MakeTokensCCMofNvout(evalcode1, evalcode2, nValue, M, pks, pvvData);
+    }   
 
     static UniValue FinalizeCCTx(bool remote, uint32_t changeFlag, struct CCcontract_info *cp, CMutableTransaction &mtx, CPubKey mypk, CAmount txfee, CScript opret)
     {
         return ::FinalizeCCTxExt(remote, changeFlag, cp, mtx, mypk, txfee, opret);
+    }
+    static std::vector<std::string> GetTokenIndexKeys(const CPubKey &pk)
+    {
+        return ::GetTokenV1IndexKeys(pk);
     }
 };
 
@@ -443,9 +471,19 @@ public:
     {
         return ::MakeTokensCCMofNvoutMixed(evalcode1, evalcode2, nValue, M, pks, (pvvData != nullptr ? &(*pvvData)[0] : nullptr));
     }
+    static CTxOut MakeTokensCCMofNDestVout(uint8_t evalcode1, uint8_t evalcode2, CAmount nValue, uint8_t M, const std::vector<CTxDestination> &dests, std::vector<vscript_t>* pvvData = NULL)
+    {
+        return ::MakeTokensCCMofNDestVoutMixed(evalcode1, evalcode2, nValue, M, dests, (pvvData != nullptr ? &(*pvvData)[0] : nullptr));
+    }
+
     static UniValue FinalizeCCTx(bool remote, uint32_t changeFlag, struct CCcontract_info *cp, CMutableTransaction &mtx, CPubKey mypk, CAmount txfee, CScript opret)
     {
         return ::FinalizeCCV2Tx(remote, changeFlag, cp, mtx, mypk, txfee, opret);
+    }
+
+    static std::vector<std::string> GetTokenIndexKeys(const CPubKey &pk)
+    {
+        return ::GetTokenV2IndexKeys(pk);
     }
 };
 

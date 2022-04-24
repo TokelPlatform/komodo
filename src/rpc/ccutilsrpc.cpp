@@ -120,6 +120,7 @@ UniValue createtxwithnormalinputs(const UniValue& params, bool fHelp, const CPub
     }
 
     CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+    mtx.nLockTime = komodo_next_tx_locktime();
     std::vector<CTransaction> vintxns;
     CAmount added = AddNormalinputsRemote(mtx, usedpk, amount, CC_MAXVINS, &vintxns);
     if (added < amount)
@@ -222,10 +223,22 @@ UniValue getindexkeyforcc(const UniValue& params, bool fHelp, const CPubKey& rem
     else
         throw std::runtime_error(std::string("is-mixed must be true or false"));
 
-    CScript spk = CCPubKey(cc.get(), ismixed);
-    char ccaddress[KOMODO_ADDRESS_BUFSIZE];
-    Getscriptaddress(ccaddress, spk);
-    return ccaddress;
+    UniValue result(UniValue::VARR);
+    if (ismixed)  {
+        for (CC_SUBVER ccSubVer = CC_MIXED_MODE_SUBVER_0; ccSubVer <= CC_MIXED_MODE_SUBVER_MAX; ccSubVer = (CC_SUBVER)(ccSubVer+1)) {
+            CScript spk = CCPubKey(cc.get(), ccSubVer);
+            char ccaddress[KOMODO_ADDRESS_BUFSIZE];
+            Getscriptaddress(ccaddress, spk);
+            result.push_back(ccaddress);
+        }
+    }
+    else {
+        CScript spk = CCPubKey(cc.get(), CC_OLD_V1_SUBVER);
+        char ccaddress[KOMODO_ADDRESS_BUFSIZE];
+        Getscriptaddress(ccaddress, spk);
+        result.push_back(ccaddress);
+    }
+    return result;
 }
 
 extern bool fAddressIndex;

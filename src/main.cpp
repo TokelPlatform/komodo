@@ -2110,7 +2110,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
             return error("AcceptToMemoryPool: BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s", hash.ToString());
         }
 
-        if (!ContextualCheckOutputs(tx, state, true, txdata, evalcodeChecker))
+        if (!ContextualCheckOutputs(tx, state, true, txdata, chainActive.LastTip()->GetHeight() + 1, evalcodeChecker))
             return error("AcceptToMemoryPool: BUG! PLEASE REPORT THIS! ContextualCheckOutputs failed %s", hash.ToString());
         if (flag != 0)
             KOMODO_CONNECTING = -1;
@@ -2794,12 +2794,12 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
 
 bool CScriptCheck::operator()()
 {
-    if (vout != 0) {
+    if (vout != 0) { //check cc output
         ServerTransactionSignatureChecker checker(ptxTo, n, amount, cacheStore, evalcodeChecker, *txdata);
-        if (checker.CheckCryptoCondition(scriptPubKey.GetCCV2SPK(), &error) != 1) {
-            return ::error("CScriptCheck(): %s:%d CC validation failed: %s", ptxTo->GetHash().ToString(), n, ScriptErrorString(error));
+        if (checker.CheckCryptoConditionSpk(scriptPubKey.GetCCV2SPK(), &error) != 1) {
+            return ::error("CScriptCheck(): %s:%d CC output validation failed: %s", ptxTo->GetHash().ToString(), n, ScriptErrorString(error));
         }
-    } else {
+    } else { // check cc input
         const CScript& scriptSig = ptxTo->vin[n].scriptSig;
         ServerTransactionSignatureChecker checker(ptxTo, n, amount, cacheStore, evalcodeChecker, *txdata);
         if (!VerifyScript(scriptSig, scriptPubKey, nFlags, checker, consensusBranchId, &error)) {
@@ -2999,6 +2999,7 @@ bool ContextualCheckOutputs(
                            CValidationState &state,
                            bool fScriptChecks,
                            PrecomputedTransactionData& txdata,
+                           int32_t nHeight,
                            std::shared_ptr<CCheckCCEvalCodes> evalcodeChecker,
                            std::vector<CScriptCheck> *pvChecks)
 {
@@ -3009,8 +3010,14 @@ bool ContextualCheckOutputs(
     {
         for (unsigned int i = 0; i < tx.vout.size(); i++) 
         {
-            if (tx.vout[i].scriptPubKey.IsPayToCCV2() )
+            int subversion;
+            if (tx.vout[i].scriptPubKey.IsPayToCCV2(subversion) )
             {
+                // check if secp256hash and eval param in action:
+                if (subversion >= CC_MIXED_MODE_SECHASH_SUBVER_1 && !CCUpgrades::IsUpgradeActive(nHeight, CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))  
+                {
+                    return state.DoS(100,false, REJECT_INVALID, std::string("cc v2 subversion 1 or more not yet enabled"));
+                }
                 CScriptCheck check(tx.vout[i].scriptPubKey, tx.vout[i].nValue, tx, i, evalcodeChecker, &txdata);
                 if (pvChecks)
                 {
@@ -3861,7 +3868,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
         {   // check tx outputs including coinbases
             std::vector<CScriptCheck> vChecks;
-            if (!ContextualCheckOutputs(tx, state, fExpensiveChecks, txdata[i], evalcodeChecker, nScriptCheckThreads ? &vChecks : NULL))
+            if (!ContextualCheckOutputs(tx, state, fExpensiveChecks, txdata[i], pindex->GetHeight(), evalcodeChecker, nScriptCheckThreads ? &vChecks : NULL))
                 return false;
             control.Add(vChecks);
         }

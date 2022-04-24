@@ -141,8 +141,8 @@ CTxOut MakeCC1voutMixed(uint8_t evalcode,CAmount nValue, CPubKey pk, std::vector
 {
     CTxOut vout;
     CCwrapper payoutCond(MakeCCcond1(evalcode,pk));
-    if (!CCtoAnon(payoutCond.get())) return (vout);
-    vout = CTxOut(nValue,CCPubKey(payoutCond.get(),true));
+    //if (!CCtoAnon(payoutCond.get())) return (vout);
+    vout = CTxOut(nValue,CCPubKey(payoutCond.get(), CC_MIXED_MODE_SUBVER_0));
     if ( vData )
     {
         vout.scriptPubKey << *vData << OP_DROP;
@@ -154,8 +154,8 @@ CTxOut MakeCC1of2voutMixed(uint8_t evalcode,CAmount nValue,CPubKey pk1,CPubKey p
 {
     CTxOut vout;
     CCwrapper payoutCond(MakeCCcond1of2(evalcode,pk1,pk2));
-    if (!CCtoAnon(payoutCond.get())) return (vout);
-    vout = CTxOut(nValue,CCPubKey(payoutCond.get(),true));
+    //if (!CCtoAnon(payoutCond.get())) return (vout);
+    vout = CTxOut(nValue,CCPubKey(payoutCond.get(), CC_MIXED_MODE_SUBVER_0));
     if ( vData )
     {
         vout.scriptPubKey << *vData << OP_DROP;
@@ -391,8 +391,8 @@ bool _GetCCaddress(char *destaddr,uint8_t evalcode,CPubKey pk,bool mixed)
     destaddr[0] = 0;
     if (payoutCond.get() != 0 )
     {
-        if (mixed) CCtoAnon(payoutCond.get());
-        Getscriptaddress(destaddr,CCPubKey(payoutCond.get(),mixed));
+        //if (mixed) CCtoAnon(payoutCond.get());
+        Getscriptaddress(destaddr,CCPubKey(payoutCond.get(), CC_MIXED_MODE_SUBVER_0));
     }
     return(destaddr[0] != 0);
 }
@@ -416,9 +416,9 @@ static bool _GetTokensCCaddress(char *destaddr, uint8_t evalcode1, uint8_t evalc
 	destaddr[0] = 0;
 	if (payoutCond != nullptr)
 	{
-        if (mixed) 
-            CCtoAnon(payoutCond.get());
-		Getscriptaddress(destaddr, CCPubKey(payoutCond.get(), mixed));
+        //if (mixed) 
+        //    CCtoAnon(payoutCond.get());
+		Getscriptaddress(destaddr, CCPubKey(payoutCond.get(), CC_MIXED_MODE_SUBVER_0));
 	}
 	return(destaddr[0] != 0);
 }
@@ -438,8 +438,8 @@ bool GetCCaddress1of2(struct CCcontract_info *cp,char *destaddr,CPubKey pk,CPubK
     destaddr[0] = 0;
     if ( payoutCond.get() != 0 )
     {
-        if (mixed) CCtoAnon(payoutCond.get());
-        Getscriptaddress(destaddr,CCPubKey(payoutCond.get(),mixed));
+        //if (mixed) CCtoAnon(payoutCond.get());
+        Getscriptaddress(destaddr,CCPubKey(payoutCond.get(), CC_MIXED_MODE_SUBVER_0));
     }
     return(destaddr[0] != 0);
 }
@@ -455,9 +455,9 @@ bool GetTokensCCaddress1of2(struct CCcontract_info *cp, char *destaddr, CPubKey 
 	destaddr[0] = 0;
 	if (payoutCond != nullptr) 
 	{
-        if (mixed) 
-            CCtoAnon(payoutCond.get());
-		Getscriptaddress(destaddr, CCPubKey(payoutCond.get(), mixed));
+        //if (mixed) 
+        //    CCtoAnon(payoutCond.get());
+		Getscriptaddress(destaddr, CCPubKey(payoutCond.get(), CC_MIXED_MODE_SUBVER_0));
 	}
 	return(destaddr[0] != 0);
 }
@@ -843,7 +843,7 @@ CPubKey check_signing_pubkey(CScript scriptSig)
     auto findEval = [](CC *cond, struct CCVisitor _) {
         bool r = false;
 
-        if (cc_typeId(cond) == CC_Secp256k1) {
+        if (!cc_anon(cond) && cc_typeId(cond) == CC_Secp256k1) {
             *(CPubKey*)_.context=buf2pk(cond->publicKey);
             r = true;
         }
@@ -1596,4 +1596,65 @@ bool IsTxidInActiveChain(uint256 txid)
         return IsBlockHashInActiveChain(hashBlock);
     }
     return false;
+}
+
+// decode CC mixed mode to UniValue and specially process anon sec256hash
+UniValue CCDecodeMixedMode(const CC *cond)
+{
+    UniValue result(UniValue::VOBJ);
+
+    auto decodeCond = [](const CC *cond) -> UniValue 
+    {
+        UniValue uCond(UniValue::VOBJ);
+        uCond.pushKV("type", cc_typeName(cond));
+        if (!cc_isAnon(cond))
+        {
+            uCond.pushKV("isAnon", "no");
+            if (cc_typeId(cond) == CC_Eval)  
+                uCond.pushKV("EvalCode", EvalToStr(cond->code[0]));
+            else if(cc_typeId(cond) == CC_Threshold)  {
+                uCond.pushKV("threshold", cond->size);
+                uCond.pushKV("subconditions", CCDecodeMixedMode(cond));
+            }
+        }
+        else 
+        {
+            uCond.pushKV("isAnon", "yes");
+
+            if (cc_typeId(cond) == CC_Secp256k1hash)  {
+                std::string fingerprintHex = HexStr(cond->fingerprint, cond->fingerprint + sizeof(uint160));
+                std::cerr << __func__ << " fingerprintHex=" << fingerprintHex << std::endl;
+                CKeyID keyid(uint160(vuint8_t(cond->fingerprint, cond->fingerprint + sizeof(uint160))));
+                CBitcoinAddress addr;
+                addr.Set(keyid);
+                std::cerr << __func__ << " keyid=" << keyid.ToString() << " addr=" << addr.ToString() << std::endl;
+
+                uCond.pushKV("destination", addr.ToString());
+            }
+            else  {
+                uCond.pushKV("fingerprint", HexStr(cond->fingerprint, cond->fingerprint + sizeof(cond->fingerprint)));
+                if (cc_typeId(cond) == CC_Threshold)  
+                    uCond.pushKV("subtypes", (int64_t)cond->subtypes);
+            }
+        }
+        return uCond;
+    };
+
+    if (cc_typeId(cond) == CC_Threshold)  {
+        UniValue uThreshold(UniValue::VOBJ);
+        UniValue uSubConds(UniValue::VARR);
+        for (int i = 0; i < cond->size; i ++)   {
+            UniValue uSubCond = decodeCond(cond->subconditions[i]);
+            uSubConds.push_back(uSubCond);
+        }
+        uThreshold.pushKV("type", cc_typeName(cond));
+        uThreshold.pushKV("size", cond->size);
+        uThreshold.pushKV("subconditions", uSubConds);
+        return uThreshold;
+    }
+    else
+    {
+        UniValue uCond = decodeCond(cond);
+        return uCond;
+    }
 }

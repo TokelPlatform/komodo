@@ -23,26 +23,38 @@ bool IsCryptoConditionsEnabled()
 }
 
 
-bool IsSupportedCryptoCondition(const CC *cond)
+bool IsSupportedCryptoCondition(const CC *cond, CC_SUBVER ccSubVersion)
 {
     int mask = cc_typeMask(cond);
-
-    if (mask & ~CCEnabledTypes) return false;
-
+    int CCEnabledTypesVersioned = CCEnabledTypes;
+    if (ccSubVersion >= CC_MIXED_MODE_SECHASH_SUBVER_1) CCEnabledTypesVersioned |= (1 << CC_Secp256k1hash);
+    if (mask & ~CCEnabledTypesVersioned) return false;
+    
     // Also require that the condition have at least one signable node
-    if (!(mask & CCSigningNodes)) return false;
+    int CCSigningNodesVersioned = CCSigningNodes;
+    if (ccSubVersion >= CC_MIXED_MODE_SECHASH_SUBVER_1) CCSigningNodesVersioned = 0; // allow non signed conds
+
+    // TODO: allow non signed conds for ver >= 1 in June 2022?
+    // if (ccSubVersion < CC_MIXED_MODE_SECHASH_SUBVER_1 && !(mask & CCSigningNodes)) return false;   
+
+    // TODO: check for eval params enabled if ccSubVersion >= CC_MIXED_MODE_SECHASH_SUBVER_1
+    // ...
 
     return true;
 }
 
 
-bool IsSignedCryptoCondition(const CC *cond)
+bool IsSignedCryptoCondition(const CC *cond, CC_SUBVER ccSubVersion)
 {
     if (!cc_isFulfilled(cond)) return false;
-    if (1 << cc_typeId(cond) & CCSigningNodes) return true;
+    //if (ccSubVersion >= CC_MIXED_MODE_SECHASH_SUBVER_1) return true; // TODO enable unsigned conds in this June 2022 or not?
+
+    int CCSigningNodesVersioned = CCSigningNodes;
+    if (ccSubVersion >= CC_MIXED_MODE_SECHASH_SUBVER_1) CCSigningNodesVersioned |= (1 << CC_Secp256k1hash); // allow new secp hash cond
+    if (1 << cc_typeId(cond) & CCSigningNodesVersioned) return true;
     if (cc_typeId(cond) == CC_Threshold)
         for (int i=0; i<cond->size; i++)
-            if (IsSignedCryptoCondition(cond->subconditions[i])) return true;
+            if (IsSignedCryptoCondition(cond->subconditions[i], ccSubVersion)) return true;
     return false;
 }
 
@@ -62,17 +74,28 @@ CC* CCNewThreshold(int t, std::vector<CC*> v)
     cond->size = v.size();
     cond->subconditions = (CC**) calloc(v.size(), sizeof(CC*));
     memcpy(cond->subconditions, v.data(), v.size() * sizeof(CC*));
+    cond->dontFulfill = 0;
     return cond;
 }
 
-
+#include "utilstrencodings.h"
 CC* CCNewSecp256k1(CPubKey k)
 {
     CC *cond = cc_new(CC_Secp256k1);
     cond->publicKey = CopyPubKey(k);
+    cond->dontFulfill = 0;
     return cond;
 }
 
+CC* CCNewSecp256k1Hash(CKeyID k)
+{
+    CC *cond = cc_new(CC_Secp256k1hash);
+    cond->publicKeyHash = (uint8_t*)calloc(1, k.size());
+    //std::cerr << __func__ << " CKeyID=" << HexStr(k.begin(), k.begin()+k.size()) << " CKeyID.ToString=" << k.ToString() << std::endl;
+    memcpy(cond->publicKeyHash, k.begin(), k.size());
+    cond->dontFulfill = 0;
+    return cond;
+}
 
 CC* CCNewEval(std::vector<unsigned char> code)
 {
@@ -83,23 +106,32 @@ CC* CCNewEval(std::vector<unsigned char> code)
     return cond;
 }
 
-
-CScript CCPubKey(const CC *cond, bool mixed)
+// make cryptocondition ScriptPubKey
+CScript CCPubKey(const CC *cond, CC_SUBVER ccSubVersion)
 {
-    unsigned char buf[1000]; size_t len;
-    if (mixed)
-    {
-        buf[0]='M';
-        len = cc_fulfillmentBinaryMixedMode(cond, buf+1,999)+1;
+    unsigned char buf[MAX_FULFILLMENT_SIZE]; 
+    size_t len;
+
+    if (ccSubVersion >= CC_MIXED_MODE_SUBVER_0)   {
+        buf[0] = (uint8_t)CC_MIXED_MODE_PREFIX + ccSubVersion;
+        CC *condCopy = cc_copy(cond);
+        // make 1st level thresholds as anon for subver 0
+        // for later versions save as the mixed-mode fulfillment
+        if (ccSubVersion == CC_MIXED_MODE_SUBVER_0) 
+            CCtoAnon(condCopy);
+        size_t maxFfilSize = (ccSubVersion == CC_MIXED_MODE_SUBVER_0 ? MAX_FULFILLMENT_SPK_SIZE_V0 : MAX_FULFILLMENT_SIZE);
+        len = cc_fulfillmentBinaryMixedMode(condCopy, buf+1, maxFfilSize-1) + 1;
+        cc_free(condCopy);
     }
-    else len = cc_conditionBinary(cond, buf);
+    else 
+        len = cc_conditionBinary(cond, buf);
     return CScript() << std::vector<unsigned char>(buf, buf+len) << OP_CHECKCRYPTOCONDITION;
 }
 
 CScript CCSig(const CC *cond)
 {
-    unsigned char buf[10000];
-    size_t len = cc_fulfillmentBinary(cond, buf, 10000);
+    unsigned char buf[MAX_FULFILLMENT_SIZE];
+    size_t len = cc_fulfillmentBinary(cond, buf, MAX_FULFILLMENT_SIZE);
     auto ffill = std::vector<unsigned char>(buf, buf+len);
     ffill.push_back(1);  // SIGHASH_ALL
     return CScript() << ffill;
@@ -107,8 +139,8 @@ CScript CCSig(const CC *cond)
 
 std::vector<unsigned char> CCSigVec(const CC *cond)
 {
-    unsigned char buf[10000];
-    size_t len = cc_fulfillmentBinary(cond, buf, 10000);
+    unsigned char buf[MAX_FULFILLMENT_SIZE];
+    size_t len = cc_fulfillmentBinary(cond, buf, MAX_FULFILLMENT_SIZE);
     auto ffill = std::vector<unsigned char>(buf, buf+len);
     ffill.push_back(1);  // SIGHASH_ALL
     return ffill;
@@ -142,6 +174,21 @@ CC* CCPrune(CC *cond)
     return cc_readFulfillmentBinary(ffillBin.data(), ffillBin.size()-1);
 }
 
+// make 1st level thresholds anonymous to have compact spks
+bool CCtoAnon(const CC* cond)
+{
+    if (cc_typeId(cond) == CC_Threshold) {
+        for (int i = 0; i < cond->size; i++)  {
+            if (cc_typeId(cond->subconditions[i]) == CC_Threshold) {
+                CC* saved = cond->subconditions[i];
+                cond->subconditions[i] = cc_anon(saved);
+                cc_free(saved);
+                return (true);
+            }
+        }
+    }
+    return (false);
+}
 
 bool GetPushData(const CScript &sig, std::vector<unsigned char> &data)
 {
@@ -164,15 +211,12 @@ bool GetOpReturnData(const CScript &sig, std::vector<unsigned char> &data)
 }
 
 
-const uint8_t CC_MIXED_MODE_PREFIX = 'M';
-
-
 struct CC* cc_readConditionBinaryMaybeMixed(const uint8_t *condBin, size_t condBinLength)
 {
     if (condBinLength == 0)
         return NULL;
 
-    return condBin[0] == CC_MIXED_MODE_PREFIX ?
+    return CC_MixedModeSubVersion(condBin[0]) >= CC_MIXED_MODE_SUBVER_0 ?
         cc_readFulfillmentBinaryMixedMode(condBin+1, condBinLength-1) :
         cc_readConditionBinary(condBin, condBinLength);
 }
@@ -181,11 +225,11 @@ struct CC* cc_readConditionBinaryMaybeMixed(const uint8_t *condBin, size_t condB
 int cc_verifyMaybeMixed(const struct CC *cond, const uint256 sigHash,
         const uint8_t *condBin, size_t condBinLength, VerifyEval verifyEval, void *evalContext)
 {
-    if (condBinLength == 0) return false;
+    if (condBinLength == 0) return 0;
     uint8_t condBuf[1000];
-    if (condBin[0] == CC_MIXED_MODE_PREFIX) {
+    if (CC_MixedModeSubVersion(condBin[0]) >= CC_MIXED_MODE_SUBVER_0) {
         CC* condMixed = cc_readFulfillmentBinaryMixedMode(condBin+1, condBinLength-1);
-        if (!condMixed) return false;
+        if (!condMixed) return 0;
         condBinLength = cc_conditionBinary(condMixed, condBuf);
         condBin = condBuf;
         cc_free(condMixed);

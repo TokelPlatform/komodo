@@ -147,14 +147,3 @@ bool IsRemoteRPCCall()
 {
     return is_remote_rpc_call;
 }
-
-bool CCtoAnon(const CC* cond)
-{
-    for (int i = 0; i < cond->size; i++)
-        if (cc_typeId(cond->subconditions[i]) == CC_Threshold) {
-            CCwrapper tmp(cond->subconditions[i]);
-            cond->subconditions[i] = cc_anon(tmp.get());
-            return (true);
-        }
-    return (false);
-}

@@ -19,21 +19,28 @@
 namespace CCUpgrades {
 
     class CUpgradesContainer {
+    private: 
+        void addUpgradeActive(const std::string &chainName, UPGRADE_ID upgradeId, int32_t nHeight)
+        {
+            ChainUpgrades oUpgrade;
+            oUpgrade.setActivationHeight(upgradeId, nHeight, UPGRADE_ACTIVE);
+            mChainUpgrades[chainName] = oUpgrade;
+        }
     public:
         CUpgradesContainer()  {
 
             // default upgrades: always enable all fixes
             defaultUpgrades.IsAllEnabled = true;
 
-            // TOKEL
-            ChainUpgrades tokel;
-            tokel.setActivationHeight(CCASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TOKEL_HEIGHT, UPGRADE_ACTIVE);
-            mChainUpgrades["TOKEL"] = tokel;
+            // CCASSETS_OPDROP_VALIDATE_FIX activation
+            addUpgradeActive("TOKEL", CCASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
+            addUpgradeActive("TKLTEST", CCASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TKLTEST_HEIGHT);
 
-            // TKLTEST
-            ChainUpgrades tkltest;
-            tkltest.setActivationHeight(CCASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TKLTEST_HEIGHT, UPGRADE_ACTIVE);
-            mChainUpgrades["TKLTEST"] = tkltest;
+            // CCMIXEDMODE_SUBVER_1 activation
+            addUpgradeActive("TOKEL", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TOKEL_HEIGHT);
+            addUpgradeActive("TKLTEST", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TKLTEST_HEIGHT);
+            addUpgradeActive("DIMXY24", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_DIMXY24_HEIGHT);
+            addUpgradeActive("TKLTEST2", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TKLTEST2_HEIGHT);
 
             // add more chains here...
             // ...

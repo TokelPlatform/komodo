@@ -21,10 +21,16 @@
 #include <map>
 #include <vector>
 
-const int32_t CCASSETS_OPDROP_FIX_TOKEL_HEIGHT = 286359;  // 26 Nov + 90 days
-const int32_t CCASSETS_OPDROP_FIX_TKLTEST_HEIGHT = 243159;  // 26 Nov + 60 days
-
 namespace CCUpgrades  {
+
+    // asset chain activation heights
+    const int32_t CCASSETS_OPDROP_FIX_TOKEL_HEIGHT = 286359;  // 26 Nov + 90 days
+    const int32_t CCASSETS_OPDROP_FIX_TKLTEST_HEIGHT = 243159;  // 26 Nov + 60 days
+
+    const int32_t CCMIXEDMODE_SUBVER_1_TKLTEST_HEIGHT = 0;  // TBD
+    const int32_t CCMIXEDMODE_SUBVER_1_TOKEL_HEIGHT = 0;  // TBD
+    const int32_t CCMIXEDMODE_SUBVER_1_DIMXY24_HEIGHT = 10000000;  // TBD
+    const int32_t CCMIXEDMODE_SUBVER_1_TKLTEST2_HEIGHT = 10000000;  // TBD
 
     enum UPGRADE_STATUS {
         UPGRADE_ACTIVE = 1,
@@ -32,6 +38,7 @@ namespace CCUpgrades  {
 
     enum UPGRADE_ID  {
         CCASSETS_OPDROP_VALIDATE_FIX = 0x01,
+        CCMIXEDMODE_SUBVER_1         = 0x02,  // new cc secp256k1 cond type and eval param
     };
 
     struct UpgradeInfo {

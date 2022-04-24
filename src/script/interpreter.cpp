@@ -1390,10 +1390,10 @@ int TransactionSignatureChecker::CheckCryptoCondition(
         return ((TransactionSignatureChecker*)checker)->CheckEvalCondition(cond);
     };
 
-    fprintf(stderr,"%s non-checker path\n", __func__);
+    //fprintf(stderr,"%s non-checker path\n", __func__);
     int out = cc_verifyMaybeMixed(
             cond, sighash, condBin.data(), condBin.size(), eval, (void*)this);
-    fprintf(stderr,"%s out.%d from cc_verify\n", __func__, (int32_t)out);
+    //fprintf(stderr,"%s out.%d from cc_verify\n", __func__, (int32_t)out);
     cc_free(cond);
     return out;
 }

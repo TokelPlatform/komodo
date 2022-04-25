@@ -855,7 +855,7 @@ UniValue rogue_register(uint64_t txfee,struct CCcontract_info *cp,cJSON *params)
     if ( txfee == 0 )
         txfee = 10000;
     mypk = pubkey2pk(Mypubkey());
-    burnpk = pubkey2pk(ParseHex(CC_BURNPUBKEY));
+    burnpk = pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED));
     roguepk = GetUnspendable(cp,0);
     rogue_univalue(result,"register",-1,-1);
     playertxid = tokenid = zeroid;

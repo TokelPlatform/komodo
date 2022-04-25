@@ -397,14 +397,14 @@ UniValue migrate_createburntransaction(const UniValue& params, bool fHelp, const
         mtx.vout.clear();  // remove payouts
 
         // now make burn transaction:
-        mtx.vout.push_back(MakeTokensCC1vout(EVAL_TOKENS, burnAmount, pubkey2pk(ParseHex(CC_BURNPUBKEY))));    // burn tokens
+        mtx.vout.push_back(MakeTokensCC1vout(EVAL_TOKENS, burnAmount, pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED))));    // burn tokens
                                                                                                                 
         int64_t change = inputs - txfee;
         if (change != 0)
             mtx.vout.push_back(CTxOut(change, CScript() << ParseHex(HexStr(myPubKey)) << OP_CHECKSIG));         // make change here to prevent it from making in FinalizeCCtx
 
         std::vector<CPubKey> voutTokenPubkeys;
-        voutTokenPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY)));  // maybe we do not need this because ccTokens has the const for burn pubkey
+        voutTokenPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED)));  // maybe we do not need this because ccTokens has the const for burn pubkey
 
         int64_t ccChange = ccInputs - burnAmount;
         if (ccChange != 0)
@@ -1412,7 +1412,7 @@ UniValue getwalletburntransactions(const UniValue& params, bool fHelp, const CPu
                                 int64_t burnAmount = 0;
                                 for (auto v : pwtx->vout)
                                     if (v.scriptPubKey.IsPayToCryptoCondition() &&
-                                        CTxOut(v.nValue, v.scriptPubKey) == MakeTokensCC1vout(EVAL_TOKENS, v.nValue, pubkey2pk(ParseHex(CC_BURNPUBKEY))))  // burned to dead pubkey
+                                        CTxOut(v.nValue, v.scriptPubKey) == MakeTokensCC1vout(EVAL_TOKENS, v.nValue, pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED))))  // burned to dead pubkey
                                         burnAmount += v.nValue;
 
                                 entry.push_back(Pair("burnedAmount", ValueFromAmount(burnAmount)));

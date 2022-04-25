@@ -92,7 +92,7 @@ public:
 
 
 
-CAmount GetCoinImportValue(const CTransaction &tx);
+CAmount GetCoinImportValue(const CTransaction &tx, int32_t nHeight);
 
 CTransaction MakeImportCoinTransaction(const ImportProof proof, const CTransaction burnTx, const std::vector<CTxOut> payouts, uint32_t nExpiryHeightOverride = 0);
 CTransaction MakePegsImportCoinTransaction(const ImportProof proof, const CTransaction burnTx, const std::vector<CTxOut> payouts, uint32_t nExpiryHeightOverride = 0);

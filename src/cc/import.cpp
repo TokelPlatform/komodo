@@ -23,6 +23,8 @@
 #include "cc/CCinclude.h"
 #include "cc/CCtokens.h"
 #include "cc/CCImportGateway.h"
+#include "cc/CCUpgrades.h"
+
 
 #include "key_io.h"
 #define CODA_BURN_ADDRESS "KPrrRoPfHOnNpZZQ6laHXdQDkSQDkVHaN0V+LizLlHxz7NaA59sBAAAA"
@@ -546,11 +548,19 @@ bool CheckMigration(Eval *eval, const CTransaction &importTx, const CTransaction
         if (!hasTokenVin)
             return eval->Invalid("burn-tx-has-no-token-vins");
 
+        std::vector<CPubKey> vDeadPubkeys;
+        vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY)));
+        if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))
+            vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED)));  // activate new burn pubkey
+
         // calc outputs for burn tx
         CAmount ccBurnOutputs = 0;
         for (auto v : burnTx.vout)
             if (v.scriptPubKey.IsPayToCryptoCondition() &&
-                CTxOut(v.nValue, v.scriptPubKey) == MakeTokensCC1vout(nonfungibleEvalCode, v.nValue, pubkey2pk(ParseHex(CC_BURNPUBKEY))))  // burned to dead pubkey
+                std::find_if(vDeadPubkeys.begin(), vDeadPubkeys.end(), [v, nonfungibleEvalCode](const CPubKey &burnpk)  { 
+                    return IsEqualDestinations(v.scriptPubKey, CCPubKey(CCwrapper(MakeTokensCCcond1(nonfungibleEvalCode, burnpk)).get() )); 
+                } ) != vDeadPubkeys.end())
+                //CTxOut(v.nValue, v.scriptPubKey) == MakeTokensCC1vout(nonfungibleEvalCode, v.nValue, pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED))))  // burned to dead pubkey
                 ccBurnOutputs += v.nValue;
 
         // calc outputs for import tx

@@ -938,6 +938,9 @@ static CAmount HasBurnedTokensvouts(Eval *eval, const CTransaction& tx, uint256 
     }
 
     vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY)));
+    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))
+        vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED)));  // activate new burn pubkey
+
 
     CAmount burnedAmount = 0;
 

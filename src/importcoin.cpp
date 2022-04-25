@@ -314,7 +314,7 @@ bool UnmarshalBurnTx(const CTransaction burnTx,uint256 &pegstxid,uint256 &tokeni
 /*
  * Required by main
  */
-CAmount GetCoinImportValue(const CTransaction &tx)
+CAmount GetCoinImportValue(const CTransaction &tx, int32_t nHeight)
 {
     ImportProof proof; CTransaction burnTx; std::vector<CTxOut> payouts;
     bool isNewImportTx = false;
@@ -345,11 +345,20 @@ CAmount GetCoinImportValue(const CTransaction &tx)
                 if (!vnonfungibleOpret.empty())
                     nonfungibleEvalCode = vnonfungibleOpret.begin()[0];
 
+                std::vector<CPubKey> vDeadPubkeys;
+                vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY)));
+                if (CCUpgrades::IsUpgradeActive(nHeight, CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))
+                    vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED)));  // activate new burn pubkey
+
                 // calc outputs for burn tx
                 int64_t ccBurnOutputs = 0;
                 for (auto v : burnTx.vout)
                     if (v.scriptPubKey.IsPayToCryptoCondition() &&
-                        CTxOut(v.nValue, v.scriptPubKey) == MakeTokensCC1vout(nonfungibleEvalCode, v.nValue, pubkey2pk(ParseHex(CC_BURNPUBKEY))))  // burned to dead pubkey
+                        std::find_if(vDeadPubkeys.begin(), vDeadPubkeys.end(), [v, nonfungibleEvalCode](const CPubKey &burnpk)  { 
+                            return IsEqualDestinations(v.scriptPubKey, CCPubKey(CCwrapper(MakeTokensCCcond1(nonfungibleEvalCode, burnpk)).get() )); 
+                        } ) != vDeadPubkeys.end())
+
+                        //CTxOut(v.nValue, v.scriptPubKey) == MakeTokensCC1vout(nonfungibleEvalCode, v.nValue, pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED))))  // burned to dead pubkey
                         ccBurnOutputs += v.nValue;
 
                 return ccBurnOutputs + burnTx.vout.back().nValue;   // total token burned value

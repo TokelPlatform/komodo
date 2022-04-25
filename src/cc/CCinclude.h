@@ -75,7 +75,11 @@ Details.
 #include "../unspentccindex.h"
 #include "rpc/server.h"
 
+// invalid burn pubkey stop using it
 #define CC_BURNPUBKEY "02deaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead" //!< 'dead' pubkey in hex for burning tokens (if tokens are sent to it, they become 'burned')
+// valid burn pubkey, start support in June 2022
+#define CC_BURNPUBKEY_FIXED "02deaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaa" 
+
 /// \cond INTERNAL
 #define CC_MAXVINS 1024
 #define CC_REQUIREMENTS_MSG (KOMODO_NSPV_SUPERLITE?"to use CC contracts you need to nspv_login first\n":"to use CC contracts, you need to launch daemon with valid -pubkey= for an address in your wallet\n")

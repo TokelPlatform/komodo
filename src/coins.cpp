@@ -596,14 +596,14 @@ CAmount CCoinsViewCache::GetValueIn(int32_t nHeight,int64_t *interestp,const CTr
     if ( interestp != 0 )
         *interestp = 0;
     if ( tx.IsCoinImport() )
-        return GetCoinImportValue(tx);
+        return GetCoinImportValue(tx, nHeight);
     if ( tx.IsCoinBase() != 0 )
         return 0;
     for (unsigned int i = 0; i < tx.vin.size(); i++)
     {
         if (tx.IsPegsImport() && i==0)
         {
-            nResult = GetCoinImportValue(tx);
+            nResult = GetCoinImportValue(tx, nHeight);
             continue;
         } 
         value = GetOutputFor(tx.vin[i]).nValue;

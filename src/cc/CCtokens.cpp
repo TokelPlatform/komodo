@@ -29,13 +29,15 @@ thread_local uint32_t tokenValIndentSize = 0; // for debug logging
 
 // helper funcs:
 
+// extract and compare addresses
 bool IsEqualDestinations(const CScript &spk1, const CScript &spk2)
 {
     char addr1[KOMODO_ADDRESS_BUFSIZE];
     char addr2[KOMODO_ADDRESS_BUFSIZE];
-    Getscriptaddress(addr1, spk1);
-    Getscriptaddress(addr2, spk2);
-    return strcmp(addr1, addr2) == 0;
+    if (Getscriptaddress(addr1, spk1) && Getscriptaddress(addr2, spk2))
+        return strcmp(addr1, addr2) == 0;
+    else
+        return false;
 }
 
 // remove token->unspendablePk (it is only for marker usage)

@@ -79,6 +79,7 @@ class CCheckCCEvalCodes;
 class Eval
 {
 public:
+    Eval() : nCurrentHeight(0) {}
     CValidationState state;
 
     bool Invalid(std::string s) { return state.Invalid(false, 0, s); }
@@ -111,6 +112,7 @@ public:
     virtual bool GetTxUnconfirmed(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock) const;
     virtual bool GetTxConfirmed(const uint256 &hash, CTransaction &txOut, CBlockIndex &block) const;
     virtual unsigned int GetCurrentHeight() const;
+    void SetCurrentHeight(int32_t nHeightIn) { nCurrentHeight = nHeightIn; }
     virtual bool GetSpendsConfirmed(uint256 hash, std::vector<CTransaction> &spends) const;
     virtual bool GetBlock(uint256 hash, CBlockIndex& blockIdx) const;
     virtual int32_t GetNotaries(uint8_t pubkeys[64][33], int32_t height, uint32_t timestamp) const;
@@ -118,6 +120,10 @@ public:
     virtual bool CheckNotaryInputs(const CTransaction &tx, uint32_t height, uint32_t timestamp) const;
     virtual uint32_t GetAssetchainsCC() const;
     virtual std::string GetAssetchainsSymbol() const;
+
+private:
+    int32_t nCurrentHeight;
+
 };
 
 
@@ -138,7 +144,7 @@ public:
 
 
 
-bool RunCCEval(const CC *cond, const CTransaction &tx, unsigned int nIn, std::shared_ptr<CCheckCCEvalCodes> evalcodeChecker);
+bool RunCCEval(const CC *cond, const CTransaction &tx, unsigned int nIn, int32_t nHeight, std::shared_ptr<CCheckCCEvalCodes> evalcodeChecker);
 
 
 /*

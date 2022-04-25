@@ -360,11 +360,11 @@ static bool IsCCOpcodeValid(opcodetype opcode, const vector<unsigned char> &data
 {
     if (data.size() > 0) 
     {
-        if (data[0] < CC_MIXED_MODE_PREFIX && opcode > OP_0 && opcode < OP_PUSHDATA1)  // pre mixed mode (cc_conditionBinary always < 76 bytes)
+        if (opcode > OP_0 && opcode < OP_PUSHDATA1)  // pre mixed mode (cc_conditionBinary always < 76 bytes) or small mixed mode
             return true;
-        else if (data[0] == CC_MIXED_MODE_PREFIX && opcode > OP_0 && opcode <= OP_PUSHDATA1)  // for mixed mode subver 'M'+0 enable longer data upto 255 b
+        else if (data[0] == CC_MIXED_MODE_PREFIX /*&& opcode > OP_0 && opcode <= OP_PUSHDATA1*/)  // for mixed mode subver 'M'+0 enable longer data upto 255 b
             return true;
-        else if (data[0] > CC_MIXED_MODE_PREFIX && opcode > OP_0 && opcode <= OP_PUSHDATA2) { // for mixed mode subver >= 'M'+1 enable even longer data upto 65K b
+        else if (data[0] == CC_MIXED_MODE_PREFIX+1 /*&& opcode > OP_0 && opcode <= OP_PUSHDATA2*/) { // for mixed mode subver >= 'M'+1 enable even longer data upto 65K b
             return true; 
         }
     }

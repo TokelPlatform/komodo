@@ -2079,7 +2079,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
         PrecomputedTransactionData txdata(tx);
         std::shared_ptr<CCheckCCEvalCodes> evalcodeChecker(new CCheckCCEvalCodes());
-        if (!ContextualCheckInputs(tx, state, view, true, STANDARD_SCRIPT_VERIFY_FLAGS, true, txdata, Params().GetConsensus(), consensusBranchId, evalcodeChecker))
+        if (!ContextualCheckInputs(tx, state, view, true, STANDARD_SCRIPT_VERIFY_FLAGS, true, txdata, Params().GetConsensus(), consensusBranchId, chainActive.LastTip()->GetHeight() + 1, evalcodeChecker))
         {
             //fprintf(stderr,"accept failure.9\n");
             LogPrint("mempool-tx", "%s ConnectInputs failed for tx %s\n", __func__, HexStr(E_MARSHAL(ss << tx)).c_str());  
@@ -2103,7 +2103,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
         }
         //fprintf(stderr,"addmempool 7\n");
 
-        if (!ContextualCheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true, txdata, Params().GetConsensus(), consensusBranchId, evalcodeChecker))
+        if (!ContextualCheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true, txdata, Params().GetConsensus(), consensusBranchId, chainActive.LastTip()->GetHeight() + 1, evalcodeChecker))
         {
             if (flag != 0)
                 KOMODO_CONNECTING = -1;
@@ -2795,13 +2795,13 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
 bool CScriptCheck::operator()()
 {
     if (vout != 0) { //check cc output
-        ServerTransactionSignatureChecker checker(ptxTo, n, amount, cacheStore, evalcodeChecker, *txdata);
+        ServerTransactionSignatureChecker checker(ptxTo, n, amount, cacheStore, nHeight, evalcodeChecker, *txdata);
         if (checker.CheckCryptoConditionSpk(scriptPubKey.GetCCV2SPK(), &error) != 1) {
             return ::error("CScriptCheck(): %s:%d CC output validation failed: %s", ptxTo->GetHash().ToString(), n, ScriptErrorString(error));
         }
     } else { // check cc input
         const CScript& scriptSig = ptxTo->vin[n].scriptSig;
-        ServerTransactionSignatureChecker checker(ptxTo, n, amount, cacheStore, evalcodeChecker, *txdata);
+        ServerTransactionSignatureChecker checker(ptxTo, n, amount, cacheStore, nHeight, evalcodeChecker, *txdata);
         if (!VerifyScript(scriptSig, scriptPubKey, nFlags, checker, consensusBranchId, &error)) {
             return ::error("CScriptCheck(): %s:%d VerifySignature failed: %s", ptxTo->GetHash().ToString(), n, ScriptErrorString(error));
         }
@@ -2826,14 +2826,14 @@ namespace Consensus {
         // are the JoinSplit's requirements met?
         if (!inputs.HaveJoinSplitRequirements(tx))
             return state.Invalid(error("CheckInputs(): %s JoinSplit requirements not met", tx.GetHash().ToString()));
-
+std::cerr << __func__ << "  nSpendHeight=" << nSpendHeight << std::endl;
         CAmount nValueIn = 0;
         CAmount nFees = 0;
         for (unsigned int i = 0; i < tx.vin.size(); i++)
         {
             if (tx.IsPegsImport() && i==0)
             {
-                nValueIn=GetCoinImportValue(tx);
+                nValueIn=GetCoinImportValue(tx, nSpendHeight);
                 continue;
             }
             const COutPoint &prevout = tx.vin[i].prevout;
@@ -2927,6 +2927,7 @@ bool ContextualCheckInputs(
                            PrecomputedTransactionData& txdata,
                            const Consensus::Params& consensusParams,
                            uint32_t consensusBranchId,
+                           int32_t nHeight,
                            std::shared_ptr<CCheckCCEvalCodes> evalcodeChecker,
                            std::vector<CScriptCheck> *pvChecks)
 {
@@ -2954,7 +2955,7 @@ bool ContextualCheckInputs(
                 assert(coins);
 
                 // Verify signature
-                CScriptCheck check(*coins, tx, i, flags, cacheStore, consensusBranchId, evalcodeChecker, &txdata);
+                CScriptCheck check(*coins, tx, i, flags, cacheStore, consensusBranchId, nHeight, evalcodeChecker, &txdata);
                 if (pvChecks) {
                     pvChecks->push_back(CScriptCheck());
                     check.swap(pvChecks->back());
@@ -2967,7 +2968,7 @@ bool ContextualCheckInputs(
                         // avoid splitting the network between upgraded and
                         // non-upgraded nodes.
                         CScriptCheck check2(*coins, tx, i,
-                                            flags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS, cacheStore, consensusBranchId, evalcodeChecker, &txdata);
+                                            flags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS, cacheStore, consensusBranchId, nHeight, evalcodeChecker, &txdata);
                         if (check2())
                             return state.Invalid(false, REJECT_NONSTANDARD, strprintf("non-mandatory-script-verify-flag (%s)", ScriptErrorString(check.GetScriptError())));
                     }
@@ -2987,7 +2988,7 @@ bool ContextualCheckInputs(
     if (tx.IsCoinImport() || tx.IsPegsImport())
     {
         LOCK(cs_main);
-        ServerTransactionSignatureChecker checker(&tx, 0, 0, false, NULL,txdata);
+        ServerTransactionSignatureChecker checker(&tx, 0, 0, false, nHeight, NULL, txdata);
         return VerifyCoinImport(tx.vin[0].scriptSig, checker, state);
     }
 
@@ -3018,7 +3019,7 @@ bool ContextualCheckOutputs(
                 {
                     return state.DoS(100,false, REJECT_INVALID, std::string("cc v2 subversion 1 or more not yet enabled"));
                 }
-                CScriptCheck check(tx.vout[i].scriptPubKey, tx.vout[i].nValue, tx, i, evalcodeChecker, &txdata);
+                CScriptCheck check(tx.vout[i].scriptPubKey, tx.vout[i].nValue, tx, i, nHeight, evalcodeChecker, &txdata);
                 if (pvChecks)
                 {
                     pvChecks->push_back(CScriptCheck());
@@ -3862,7 +3863,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             //fprintf(stderr, "tx.%s nFees.%li interest.%li\n", tx.GetHash().ToString().c_str(), stakeTxValue, interest);
 
             std::vector<CScriptCheck> vChecks;
-            if (!ContextualCheckInputs(tx, state, view, fExpensiveChecks, flags, false, txdata[i], chainparams.GetConsensus(), consensusBranchId, evalcodeChecker, nScriptCheckThreads ? &vChecks : NULL))
+            if (!ContextualCheckInputs(tx, state, view, fExpensiveChecks, flags, false, txdata[i], chainparams.GetConsensus(), consensusBranchId, pindex->GetHeight(), evalcodeChecker, nScriptCheckThreads ? &vChecks : NULL))
                 return false;
         }
 

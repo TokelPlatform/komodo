@@ -119,7 +119,7 @@ bool ServerTransactionSignatureChecker::VerifySignature(const std::vector<unsign
 int ServerTransactionSignatureChecker::CheckEvalCondition(const CC *cond) const
 {
     //fprintf(stderr,"call RunCCeval from ServerTransactionSignatureChecker::CheckEvalCondition\n");
-    return RunCCEval(cond, *txTo, nIn, evalcodeChecker);
+    return RunCCEval(cond, *txTo, nIn, nHeight, evalcodeChecker);
 }
 
 int ServerTransactionSignatureChecker::CheckCryptoConditionSpk(const std::vector<unsigned char> &condBin, ScriptError *serror) const

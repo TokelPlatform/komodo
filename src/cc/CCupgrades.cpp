@@ -22,9 +22,7 @@ namespace CCUpgrades {
     private: 
         void addUpgradeActive(const std::string &chainName, UPGRADE_ID upgradeId, int32_t nHeight)
         {
-            ChainUpgrades oUpgrade;
-            oUpgrade.setActivationHeight(upgradeId, nHeight, UPGRADE_ACTIVE);
-            mChainUpgrades[chainName] = oUpgrade;
+            mChainUpgrades[chainName].setActivationHeight(upgradeId, nHeight, UPGRADE_ACTIVE);
         }
     public:
         CUpgradesContainer()  {

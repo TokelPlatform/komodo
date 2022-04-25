@@ -843,7 +843,7 @@ CPubKey check_signing_pubkey(CScript scriptSig)
     auto findEval = [](CC *cond, struct CCVisitor _) {
         bool r = false;
 
-        if (!cc_anon(cond) && cc_typeId(cond) == CC_Secp256k1) {
+        if (!cc_isAnon(cond) && cc_typeId(cond) == CC_Secp256k1) {
             *(CPubKey*)_.context=buf2pk(cond->publicKey);
             r = true;
         }
@@ -1640,7 +1640,7 @@ UniValue CCDecodeMixedMode(const CC *cond)
         return uCond;
     };
 
-    if (cc_typeId(cond) == CC_Threshold)  {
+    if (!cc_isAnon(cond) && cc_typeId(cond) == CC_Threshold)  {
         UniValue uThreshold(UniValue::VOBJ);
         UniValue uSubConds(UniValue::VARR);
         for (int i = 0; i < cond->size; i ++)   {

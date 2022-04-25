@@ -57,10 +57,6 @@ public:
         }
     }
     const std::map<uint256, CTransaction> & getTxs() { return txs; }
-    void SetCurrentHeight(int h)
-    {
-        currentHeight = h;
-    }
 
     virtual bool GetTxUnconfirmed(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock) const
     {
@@ -74,10 +70,6 @@ public:
             return true;
         }
         return false;
-    }
-    virtual unsigned int GetCurrentHeight() const
-    {
-       return currentHeight;
     }
 };
 
@@ -397,7 +389,7 @@ protected:
     {
         CTransaction tx(mtx);
         PrecomputedTransactionData txdata(tx);
-        ServerTransactionSignatureChecker checker(&tx, 0, 0, false, NULL, txdata);
+        ServerTransactionSignatureChecker checker(&tx, 0, 0, false, eval.GetCurrentHeight(), NULL, txdata);
         CValidationState verifystate;
         VerifyEval verifyEval = [] (CC *cond, void *checker) {
             //fprintf(stderr,"checker.%p\n",(TransactionSignatureChecker*)checker);
@@ -1177,7 +1169,7 @@ TEST_F(TestAssetsCC, tokenv2ask_basic)
         ASSERT_TRUE(TestFinalizeTx(mtx, cpTokens, testKeys[mypk], 10000,
             TokensV2::EncodeTokenOpRet(tokenid2, { unspendableAssetsPubkey },   
                 { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(origpubkey.begin(), origpubkey.end()), expiryHeight) })));
-        std::cerr << __func__ << " tokenv2ask_basic different tokenid in opdrop.." << std::endl;
+        std::cerr << __func__ << " tokenv2ask_basic different tokenid in opdrop.." << " GetRejectReason=" << eval.state.GetRejectReason() << std::endl;
         EXPECT_TRUE(!TestRunCCEval(mtx) && eval.state.GetRejectReason().find("invalid tokenid") != std::string::npos);  // fail: can't ask for different tokenid
     }
 }

@@ -35,7 +35,7 @@ enum CC_SUBVER : int {
 };
 
 
-inline CC_SUBVER CC_MixedModeSubVersion(int c) { return (c >= CC_MIXED_MODE_PREFIX) ? (CC_SUBVER)(c - CC_MIXED_MODE_PREFIX) : CC_OLD_V1_SUBVER; } 
+CC_SUBVER CC_MixedModeSubVersion(int c);
 
 const size_t MAX_FULFILLMENT_SIZE = 10000;
 const size_t MAX_FULFILLMENT_SPK_SIZE_V0 = 1000;

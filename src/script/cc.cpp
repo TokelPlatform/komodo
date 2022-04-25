@@ -236,3 +236,8 @@ int cc_verifyMaybeMixed(const struct CC *cond, const uint256 sigHash,
     }
     return cc_verify(cond, sigHash.begin(), 32, 0, condBin, condBinLength, verifyEval, evalContext);
 }
+
+CC_SUBVER CC_MixedModeSubVersion(int c) 
+{ 
+    return (c >= CC_MIXED_MODE_PREFIX && c <= CC_MIXED_MODE_PREFIX + CC_MIXED_MODE_SUBVER_MAX) ? (CC_SUBVER)(c - CC_MIXED_MODE_PREFIX) : CC_OLD_V1_SUBVER; 
+} 

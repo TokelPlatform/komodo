@@ -607,22 +607,34 @@ UniValue tokentransfermany(const std::string& name, const UniValue& params, bool
     if (ResultIsError(beginResult)) 
         return beginResult;
     
-    for (const auto &tokenid : tokenids)
-    {
+    uint8_t mypriv[32];
+    Myprivkey(mypriv);
+    std::vector<std::string> srctokenaddrs;
+    std::vector<std::pair<CCwrapper, uint8_t*>> probes;
+    if (V::IsMixed() == EVAL_TOKENS) {
         CCwrapper probeCond;
         probeCond.reset( MakeCCcond1(V::EvalCode(), mypk) );
-
-        uint8_t mypriv[32];
-        Myprivkey(mypriv);
-        
         char tokenaddr[KOMODO_ADDRESS_BUFSIZE];
         GetTokensCCaddress(cpTokens, tokenaddr, mypk, V::IsMixed());
+        srctokenaddrs.push_back(tokenaddr);
+        probes.push_back({probeCond, mypriv});
 
-        UniValue addtxResult = TokenAddTransferVout<V>(mtx, cpTokens, remotepk, tokenid, tokenaddr, { destpk }, {probeCond, mypriv}, amount, false);
+    }
+    else {
+        std::vector<CCwrapper> pkconds = GetTokenV2Conds(mypk);
+        srctokenaddrs = GetTokenV2IndexKeys(mypk);
+        for(auto const &cond : pkconds)
+            probes.push_back({cond, mypriv});
+    }
+
+    for (const auto &tokenid : tokenids)
+    {
+        UniValue addtxResult = TokenAddTransferVout<V>(mtx, cpTokens, remotepk, tokenid, srctokenaddrs, { destpk }, probes, amount, false);
         memset(mypriv, '\0', sizeof(mypriv));
         if (ResultIsError(addtxResult)) 
             return MakeResultError( ResultGetError(addtxResult) + " " + tokenid.GetHex() );
     }
+    memset(mypriv, '\0', sizeof(mypriv));
     UniValue sigData = TokenFinalizeTransferTx<V>(mtx, cpTokens, remotepk, txfee, CScript());
     RETURN_IF_ERROR(CCerror);
     if (ResultHasTx(sigData) > 0)

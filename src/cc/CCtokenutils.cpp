@@ -544,23 +544,19 @@ std::vector<std::string> GetTokenV1IndexKeys(const CPubKey &pk)
     return tokenindexkeys;
 }
 
+// get conds from pubkey:
 std::vector<CCwrapper> GetTokenV2Conds(const CPubKey &pk)
 {
     std::vector<CCwrapper> tokenconds;
-    // get token cond from the pubkey:
-    char tokenindexkeyPK[KOMODO_ADDRESS_BUFSIZE];
-	struct CCcontract_info *cp, C; 
-	cp = CCinit(&C, EVAL_TOKENSV2);
-
-    CCwrapper tokenCondPK( MakeTokensv2CCcondMofNDest(EVAL_TOKENSV2, 0, 1, { pk }) );
-    tokenconds.push_back(tokenCondPK);
-    
-    // get token conds from the Raddress
     char normaladdr[KOMODO_ADDRESS_BUFSIZE];
     Getscriptaddress(normaladdr, CScript() << vuint8_t(pk.begin(), pk.end()) << OP_CHECKSIG); 
-    CTxDestination dest = DecodeDestination(normaladdr);  // get normal dest
-    for (CC_SUBVER ccSubVersion = CC_MIXED_MODE_SUBVER_0; ccSubVersion <= CC_MIXED_MODE_SUBVER_MAX; ccSubVersion = (CC_SUBVER)(ccSubVersion + 1))  {
-        CCwrapper tokenCond( MakeTokensv2CCcondMofNDest(EVAL_TOKENSV2, 0, 1, { dest }) ); // use cc creator for destinations
+    std::vector<CTxDestination> dests{ CTxDestination(pk), DecodeDestination(normaladdr) };
+
+//    for (CC_SUBVER ccSubVersion = CC_MIXED_MODE_SUBVER_0; i < dests.size() && ccSubVersion <= CC_MIXED_MODE_SUBVER_MAX; ccSubVersion = (CC_SUBVER)(ccSubVersion + 1), i ++)  {
+    for (int i = 0; i < dests.size(); i ++)  {
+        CCwrapper tokenCond( MakeTokensv2CCcondMofNDest(EVAL_TOKENSV2, 0, 1, { dests[i] }) );
+        //if (!CCtoAnon(tokenCond.get())) { std::cerr << __func__ << " CCtoAnon failed" << std::endl; continue; }  // now in CCPubKey()
+        if (tokenCond == nullptr) continue;
         tokenconds.push_back(tokenCond);
     }
     return tokenconds;
@@ -571,23 +567,12 @@ std::vector<std::string> GetTokenV2IndexKeys(const CPubKey &pk)
 {
     std::vector<std::string> tokenindexkeys;
 
-    // get indexkey from pubkey:
-    CTxDestination pkdest = pk;
-
-    // get indexkey from Raddress
-    char normaladdr[KOMODO_ADDRESS_BUFSIZE];
-    char tokenindexkeyR[KOMODO_ADDRESS_BUFSIZE];
-    Getscriptaddress(normaladdr, CScript() << vuint8_t(pk.begin(), pk.end()) << OP_CHECKSIG); 
-    CTxDestination dest = DecodeDestination(normaladdr);  // get normal dest
-
-    std::vector<CTxDestination> dests{ pkdest, dest };
-
-    int i = 0;
-    for (CC_SUBVER ccSubVersion = CC_MIXED_MODE_SUBVER_0; i < dests.size() && ccSubVersion <= CC_MIXED_MODE_SUBVER_MAX; ccSubVersion = (CC_SUBVER)(ccSubVersion + 1), i ++)  {
-        CCwrapper tokenCond( MakeTokensv2CCcondMofNDest(EVAL_TOKENSV2, 0, 1, { dests[i] }) );
-        //if (!CCtoAnon(tokenCond.get())) { std::cerr << __func__ << " CCtoAnon failed" << std::endl; continue; }  // now in CCPubKey()
-        Getscriptaddress(tokenindexkeyR, CCPubKey(tokenCond.get(), ccSubVersion));
-        tokenindexkeys.push_back(tokenindexkeyR);
+    std::vector<CCwrapper> tokenconds = GetTokenV2Conds(pk);
+    for (auto const &cond : tokenconds)  {
+        char tokenindexkey[KOMODO_ADDRESS_BUFSIZE];
+        CC_SUBVER ccSubVersion = (cc_typeMask(cond.get()) & (1 << CC_Secp256k1hash)) ? CC_MIXED_MODE_SECHASH_SUBVER_1 : CC_MIXED_MODE_SUBVER_0;
+        Getscriptaddress(tokenindexkey, CCPubKey(cond.get(), ccSubVersion));
+        tokenindexkeys.push_back(tokenindexkey);
     }
     return tokenindexkeys;
 }

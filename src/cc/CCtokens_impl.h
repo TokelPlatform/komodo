@@ -199,11 +199,11 @@ UniValue TokenBeginTransferTx(CMutableTransaction &mtx, struct CCcontract_info *
 }
 
 template<class V>
-UniValue TokenAddTransferVout(CMutableTransaction &mtx, struct CCcontract_info *cp, const CPubKey &remotepk, uint256 tokenid, const char *tokenaddr, std::vector<CPubKey> destpubkeys, const std::pair<CCwrapper, uint8_t*> &probecond, CAmount amount, bool useMempool)
+UniValue TokenAddTransferVout(CMutableTransaction &mtx, struct CCcontract_info *cp, const CPubKey &remotepk, uint256 tokenid, const std::vector<std::string> &tokenaddrs, std::vector<CPubKey> destpubkeys, const std::vector< std::pair<CCwrapper, uint8_t*> > &probeconds, CAmount total, bool useMempool)
 {
-    if (amount < 0)	{
+    if (total < 0)	{
         CCerror = strprintf("negative amount");
-        LOGSTREAMFN(cctokens_log, CCLOG_DEBUG1, stream << CCerror << "=" << amount << std::endl);
+        LOGSTREAMFN(cctokens_log, CCLOG_DEBUG1, stream << CCerror << "=" << total << std::endl);
         MakeResultError("negative amount");
 	}
 
@@ -214,49 +214,50 @@ UniValue TokenAddTransferVout(CMutableTransaction &mtx, struct CCcontract_info *
         return MakeResultError("my pubkey not set");
     }
 
-    CAmount inputs;        
-    if ((inputs = AddTokenCCInputs<V>(cp, mtx, tokenaddr, tokenid, amount, CC_MAXVINS, useMempool)) > 0)  // NOTE: AddTokenCCInputs might set cp->additionalEvalCode which is used in FinalizeCCtx!
+    CAmount CCinputs = 0LL;
+    for (const auto &addr : tokenaddrs)  {
+        CAmount CCinputsOne = AddTokenCCInputs<V>(cp, mtx, addr.c_str(), tokenid, total, CC_MAXVINS, useMempool);
+        if (CCinputsOne > 0)
+            CCinputs += CCinputsOne;
+        if (CCinputs >= total)
+            break;
+    }
+
+    if (CCinputs < total) {   
+        CCerror = strprintf("insufficient token inputs");
+        LOGSTREAMFN(cctokens_log, CCLOG_DEBUG1, stream << CCerror << std::endl);
+        return MakeResultError("insufficient token inputs");
+    }
+
+    for(auto const &probecond : probeconds)
+        CCAddVintxCond(cp, probecond.first, probecond.second);
+
+    CScript opret = V::EncodeTokenOpRet(tokenid, destpubkeys, {});
+    vscript_t vopret;
+    GetOpReturnData(opret, vopret);
+    std::vector<vscript_t> vData { vopret };
+    if (destpubkeys.size() == 1)
+        mtx.vout.push_back(V::MakeTokensCC1vout(V::EvalCode(), total, destpubkeys[0], &vData));  
+    else if (destpubkeys.size() == 2)
+        mtx.vout.push_back(V::MakeTokensCC1of2vout(V::EvalCode(), total, destpubkeys[0], destpubkeys[1], &vData)); 
+    else
     {
-        if (inputs < amount) {   
-            CCerror = strprintf("insufficient token inputs");
-            LOGSTREAMFN(cctokens_log, CCLOG_DEBUG1, stream << CCerror << std::endl);
-            return MakeResultError("insufficient token inputs");
-        }
+        CCerror = "zero or unsupported destination pk count";
+        return MakeResultError("zero or unsupported destination pubkey count");
+    }
 
-        if (probecond.first != nullptr)
-        {
-            // add probe cc and kogs priv to spend from kogs global pk
-            CCAddVintxCond(cp, probecond.first, probecond.second);
-        }
-
-        CScript opret = V::EncodeTokenOpRet(tokenid, destpubkeys, {});
+    CAmount CCchange = 0L;
+    if (CCinputs > total)
+        CCchange = (CCinputs - total);
+    if (CCchange != 0LL) {
+        CScript opret = V::EncodeTokenOpRet(tokenid, {mypk}, {});
         vscript_t vopret;
         GetOpReturnData(opret, vopret);
         std::vector<vscript_t> vData { vopret };
-        if (destpubkeys.size() == 1)
-            mtx.vout.push_back(V::MakeTokensCC1vout(V::EvalCode(), amount, destpubkeys[0], &vData));  
-        else if (destpubkeys.size() == 2)
-            mtx.vout.push_back(V::MakeTokensCC1of2vout(V::EvalCode(), amount, destpubkeys[0], destpubkeys[1], &vData)); 
-        else
-        {
-            CCerror = "zero or unsupported destination pk count";
-            return MakeResultError("zero or unsupported destination pubkey count");
-        }
-
-        CAmount CCchange = 0L;
-        if (inputs > amount)
-			CCchange = (inputs - amount);
-        if (CCchange != 0) {
-            CScript opret = V::EncodeTokenOpRet(tokenid, {mypk}, {});
-            vscript_t vopret;
-            GetOpReturnData(opret, vopret);
-            std::vector<vscript_t> vData { vopret };
-            mtx.vout.push_back(V::MakeTokensCC1vout(V::EvalCode(), CCchange, mypk, &vData));
-        }
-
-        return MakeResultSuccess("");
+        mtx.vout.push_back(V::MakeTokensCC1vout(V::EvalCode(), CCchange, mypk, &vData));
     }
-    return MakeResultError("could not find token inputs");
+
+    return MakeResultSuccess("");
 }
 
 
@@ -330,9 +331,9 @@ UniValue TokenTransferExtDest(const CPubKey &remotepk, CAmount txfee, uint256 to
 	{        
         CAmount CCchange = 0, CCinputs = 0;  
         for (const auto &addr : tokenaddrs)  {
-            CAmount outputs = AddTokenCCInputs<V>(cp, mtx, addr.c_str(), tokenid, total, CC_MAXVINS, useMempool);
-            if (outputs > 0)
-                CCinputs += outputs;
+            CAmount CCinputsOne = AddTokenCCInputs<V>(cp, mtx, addr.c_str(), tokenid, total, CC_MAXVINS, useMempool);
+            if (CCinputsOne > 0)
+                CCinputs += CCinputsOne;
             if (CCinputs >= total)
                 break;
         }

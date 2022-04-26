@@ -2826,7 +2826,6 @@ namespace Consensus {
         // are the JoinSplit's requirements met?
         if (!inputs.HaveJoinSplitRequirements(tx))
             return state.Invalid(error("CheckInputs(): %s JoinSplit requirements not met", tx.GetHash().ToString()));
-std::cerr << __func__ << "  nSpendHeight=" << nSpendHeight << std::endl;
         CAmount nValueIn = 0;
         CAmount nFees = 0;
         for (unsigned int i = 0; i < tx.vin.size(); i++)

@@ -112,6 +112,8 @@ CScript CCPubKey(const CC *cond, CC_SUBVER ccSubVersion)
     unsigned char buf[MAX_FULFILLMENT_SIZE]; 
     size_t len;
 
+    if (!cond) return CScript();
+
     if (ccSubVersion >= CC_MIXED_MODE_SUBVER_0)   {
         buf[0] = (uint8_t)CC_MIXED_MODE_PREFIX + ccSubVersion;
         CC *condCopy = cc_copy(cond);

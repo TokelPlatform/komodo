@@ -364,7 +364,6 @@ libbitcoin_server_a_SOURCES = \
   txdb.cpp \
   txmempool.cpp \
   validationinterface.cpp \
-  cc/CCupgrades.cpp \
   $(BITCOIN_CORE_H) \
   $(LIBZCASH_H)
 
@@ -509,6 +508,7 @@ libbitcoin_common_a_SOURCES = \
   transaction_builder.cpp \
   cc/CCtokenutils.cpp \
   cc/CCutilbits.cpp \
+  cc/CCupgrades.cpp \
   gmp_i64.c \
   $(BITCOIN_CORE_H) \
   $(LIBZCASH_H)

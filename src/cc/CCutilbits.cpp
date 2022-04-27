@@ -20,6 +20,34 @@
 #include "CCinclude.h"
 #include "komodo_structs.h"
 
+// get address for a scriptPubKey
+bool Getscriptaddress(char *destaddr,const CScript &scriptPubKey)
+{
+    CTxDestination address; txnouttype whichType;
+    destaddr[0] = 0;
+    if ( scriptPubKey.begin() != 0 )
+    {
+        if ( ExtractDestination(scriptPubKey,address) != 0 )
+        {
+            strcpy(destaddr,(char *)CBitcoinAddress(address).ToString().c_str());
+            return(true);
+        }
+    }
+    //fprintf(stderr,"ExtractDestination failed\n");
+    return(false);
+}
+
+// extract and compare addresses
+bool IsEqualDestinations(const CScript &spk1, const CScript &spk2)
+{
+    char addr1[KOMODO_ADDRESS_BUFSIZE];
+    char addr2[KOMODO_ADDRESS_BUFSIZE];
+    if (Getscriptaddress(addr1, spk1) && Getscriptaddress(addr2, spk2))
+        return strcmp(addr1, addr2) == 0;
+    else
+        return false;
+}
+
 int32_t unstringbits(char *buf,uint64_t bits)
 {
     int32_t i;

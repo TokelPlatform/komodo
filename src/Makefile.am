@@ -296,7 +296,6 @@ libbitcoin_server_a_SOURCES = \
   cc/eval.cpp \
   cc/import.cpp \
   cc/importgateway.cpp \
-  importcoin.cpp \
   cc/CCassetsUtils.cpp \
   cc/CCcustom.cpp \
   cc/CCtx.cpp \
@@ -487,6 +486,7 @@ libbitcoin_common_a_SOURCES = \
   crypto/verus_hash.h \
   crypto/verus_hash.cpp \
   hash.cpp \
+  importcoin.cpp \
   key.cpp \
   key_io.cpp \
   keystore.cpp \

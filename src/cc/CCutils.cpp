@@ -239,21 +239,7 @@ void CCaddrTokens1of2set(struct CCcontract_info *cp, CPubKey pk1, CPubKey pk2, u
 	strcpy(cp->tokens1of2addr, tokenaddr);
 }
 
-bool Getscriptaddress(char *destaddr,const CScript &scriptPubKey)
-{
-    CTxDestination address; txnouttype whichType;
-    destaddr[0] = 0;
-    if ( scriptPubKey.begin() != 0 )
-    {
-        if ( ExtractDestination(scriptPubKey,address) != 0 )
-        {
-            strcpy(destaddr,(char *)CBitcoinAddress(address).ToString().c_str());
-            return(true);
-        }
-    }
-    //fprintf(stderr,"ExtractDestination failed\n");
-    return(false);
-}
+// NOTE: bool Getscriptaddress(char *destaddr,const CScript &scriptPubKey) moved to CCutilsbits.cpp to enable build komodo-tx tool
 
 bool GetCustomscriptaddress(char *destaddr,const CScript &scriptPubKey,uint8_t taddr,uint8_t prefix, uint8_t prefix2)
 {

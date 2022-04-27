@@ -342,6 +342,19 @@ namespace TestScriptStandartTests {
             OP_3 << OP_CHECKMULTISIG;
         result = GetScriptForMultisig(2, std::vector<CPubKey>(pubkeys, pubkeys + 3));
         ASSERT_TRUE(result == expected);
+
+
+        // CCLTVID
+        int64_t utm = 1651073436;
+        expected.clear();
+        expected << CScriptNum::serialize(utm) << OP_CHECKLOCKTIMEVERIFY << OP_DROP << ToByteVector(pubkeys[0]) << OP_CHECKSIG;
+        result = GetScriptForDestination(CCLTVID(pubkeys[0], utm));
+        ASSERT_TRUE(result == expected);
+
+        expected.clear();
+        expected << CScriptNum::serialize(utm) << OP_CHECKLOCKTIMEVERIFY << OP_DROP << OP_DUP << OP_HASH160 << ToByteVector(pubkeys[0].GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
+        result = GetScriptForDestination(CCLTVID(pubkeys[0].GetID(), utm));
+        ASSERT_TRUE(result == expected);
     }
 
     TEST(TestScriptStandartTests, script_standard_IsMine) {

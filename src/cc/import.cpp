@@ -23,7 +23,7 @@
 #include "cc/CCinclude.h"
 #include "cc/CCtokens.h"
 #include "cc/CCImportGateway.h"
-#include "cc/CCUpgrades.h"
+#include "cc/CCupgrades.h"
 
 
 #include "key_io.h"

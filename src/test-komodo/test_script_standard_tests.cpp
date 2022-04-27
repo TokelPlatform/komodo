@@ -342,7 +342,19 @@ namespace TestScriptStandartTests {
             OP_3 << OP_CHECKMULTISIG;
         result = GetScriptForMultisig(2, std::vector<CPubKey>(pubkeys, pubkeys + 3));
         ASSERT_TRUE(result == expected);
+    }
 
+    // timelocked script in tokel repo
+    TEST(TestScriptStandartTests, script_standard_GetScriptFor_CLTV) {
+
+        CKey keys[1];
+        CPubKey pubkeys[1];
+        for (int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
+            keys[i].MakeNewKey(true);
+            pubkeys[i] = keys[i].GetPubKey();
+        }
+
+        CScript expected, result;
 
         // CCLTVID
         int64_t utm = 1651073436;

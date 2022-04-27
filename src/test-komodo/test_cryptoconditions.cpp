@@ -79,7 +79,7 @@ TEST_F(CCTest, testMayAcceptCryptoCondition)
           { "type": "eval-sha-256", "code": "" }
       ]
     })!!");
-    ASSERT_FALSE(CCPubKey(cond).MayAcceptCryptoCondition());
+    ASSERT_TRUE(CCPubKey(cond).MayAcceptCryptoCondition());   // used to be ASSERT_FALSE, now enabled for generic evals
 }
 
 

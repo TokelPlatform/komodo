@@ -360,14 +360,20 @@ static bool IsCCOpcodeValid(opcodetype opcode, const vector<unsigned char> &data
 {
     if (data.size() > 0) 
     {
-        if (opcode > OP_0 && opcode < OP_PUSHDATA1)  // pre mixed mode (cc_conditionBinary always < 76 bytes) or small mixed mode
+        if (opcode > OP_0 && opcode < OP_PUSHDATA1) { // pre mixed mode (cc_conditionBinary always < 76 bytes) or small mixed mode
+            std::cerr << __func__ << " valid0" << std::endl;
             return true;
-        else if (data[0] == CC_MIXED_MODE_PREFIX /*&& opcode > OP_0 && opcode <= OP_PUSHDATA1*/)  // for mixed mode subver 'M'+0 enable longer data upto 255 b
+        }
+        else if (data[0] == CC_MIXED_MODE_PREFIX /*&& opcode > OP_0 && opcode <= OP_PUSHDATA1*/) { // for mixed mode subver 'M'+0 enable longer data upto 255 b
+            std::cerr << __func__ << " valid1" << std::endl;
             return true;
+        }
         else if (data[0] == CC_MIXED_MODE_PREFIX+1 /*&& opcode > OP_0 && opcode <= OP_PUSHDATA2*/) { // for mixed mode subver >= 'M'+1 enable even longer data upto 65K b
+            std::cerr << __func__ << " valid2" << std::endl;
             return true; 
         }
     }
+    std::cerr << __func__ << " invalid" << std::endl;
     return false;
 }
 
@@ -480,11 +486,15 @@ bool CScript::MayAcceptCryptoCondition() const
     if (!IsCCOpcodeValid(opcode, data)) return false;
 
     CC *cond = cc_readConditionBinaryMaybeMixed(data.data(), data.size());
-    if (!cond) return false;
+    if (!cond) {
+        std::cerr << __func__ << " cond is null" << std::endl;
+        return false;
+    }
 
     CC_SUBVER ccSubVersion = CC_MixedModeSubVersion((*this)[0]); 
     bool out = IsSupportedCryptoCondition(cond, ccSubVersion);
     cc_free(cond);
+    std::cerr << __func__ << " out=" << out << std::endl;
     return out;
 }
 

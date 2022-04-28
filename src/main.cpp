@@ -3014,10 +3014,11 @@ bool ContextualCheckOutputs(
     {
         for (unsigned int i = 0; i < tx.vout.size(); i++) 
         {
-            int subversion;
-            if (tx.vout[i].scriptPubKey.IsPayToCCV2(subversion) )
+            
+            if (tx.vout[i].scriptPubKey.IsPayToCCV2() )
             {
                 // check if secp256hash and eval param in action:
+                int subversion = CC_MixedModeSubVersion(tx.vout[i].scriptPubKey[0]);
                 if (subversion >= CC_MIXED_MODE_SECHASH_SUBVER_1 && !CCUpgrades::IsUpgradeActive(nHeight, CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))  
                 {
                     return state.DoS(100,false, REJECT_INVALID, std::string("cc v2 subversion 1 or more not yet enabled"));

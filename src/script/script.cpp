@@ -360,20 +360,13 @@ static bool IsCCOpcodeValid(opcodetype opcode, const vector<unsigned char> &data
 {
     if (data.size() > 0) 
     {
-        if (opcode > OP_0 && opcode < OP_PUSHDATA1) { // pre mixed mode (cc_conditionBinary always < 76 bytes) or small mixed mode
-            std::cerr << __func__ << " valid0" << std::endl;
+        if (opcode > OP_0 && opcode < OP_PUSHDATA1)  // pre mixed mode (cc_conditionBinary always < 76 bytes) or small mixed mode
             return true;
-        }
-        else if (data[0] == CC_MIXED_MODE_PREFIX /*&& opcode > OP_0 && opcode <= OP_PUSHDATA1*/) { // for mixed mode subver 'M'+0 enable longer data upto 255 b
-            std::cerr << __func__ << " valid1" << std::endl;
+        else if (data[0] == CC_MIXED_MODE_PREFIX /*&& opcode > OP_0 && opcode <= OP_PUSHDATA1*/)  // for mixed mode subver 'M'+0 enable longer data upto 255 b
             return true;
-        }
-        else if (data[0] == CC_MIXED_MODE_PREFIX+1 /*&& opcode > OP_0 && opcode <= OP_PUSHDATA2*/) { // for mixed mode subver >= 'M'+1 enable even longer data upto 65K b
-            std::cerr << __func__ << " valid2" << std::endl;
+        else if (data[0] == CC_MIXED_MODE_PREFIX+1 /*&& opcode > OP_0 && opcode <= OP_PUSHDATA2*/) // for mixed mode subver >= 'M'+1 enable even longer data upto 65K b
             return true; 
-        }
     }
-    std::cerr << __func__ << " invalid" << std::endl;
     return false;
 }
 
@@ -423,7 +416,7 @@ bool CScript::IsPayToCryptoCondition() const
     return IsPayToCryptoCondition(NULL);
 }
 
-bool CScript::IsPayToCCV2(int &subversion) const
+bool CScript::IsPayToCCV2() const
 {
     const_iterator pc = begin();
     std::vector<unsigned char> data;
@@ -435,11 +428,6 @@ bool CScript::IsPayToCCV2(int &subversion) const
         if (CC_MixedModeSubVersion(data[0]) >= CC_MIXED_MODE_SUBVER_0) return (true);
     }
     return (false);
-}
-bool CScript::IsPayToCCV2() const
-{
-    int subversion;
-    return IsPayToCCV2(subversion);
 }
 
 const std::vector<unsigned char> CScript::GetCCV2SPK() const
@@ -486,15 +474,11 @@ bool CScript::MayAcceptCryptoCondition() const
     if (!IsCCOpcodeValid(opcode, data)) return false;
 
     CC *cond = cc_readConditionBinaryMaybeMixed(data.data(), data.size());
-    if (!cond) {
-        std::cerr << __func__ << " cond is null" << std::endl;
-        return false;
-    }
+    if (!cond) return false;
 
     CC_SUBVER ccSubVersion = CC_MixedModeSubVersion((*this)[0]); 
     bool out = IsSupportedCryptoCondition(cond, ccSubVersion);
     cc_free(cond);
-    std::cerr << __func__ << " out=" << out << std::endl;
     return out;
 }
 

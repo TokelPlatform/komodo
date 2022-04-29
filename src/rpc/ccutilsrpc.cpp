@@ -208,7 +208,7 @@ UniValue getindexkeyforcc(const UniValue& params, bool fHelp, const CPubKey& rem
             "Sample:\n"
             "getindexkeyforcc \'{ \"type\": \"threshold-sha-256\", \"threshold\": 2, \"subfulfillments\":"
             "[{\"type\":\"eval-sha-256\",\"code\":\"9A\"}, {\"type\":\"threshold-sha-256\", \"threshold\":1,"
-            "subfulfillments\":[{ \"type\": \"secp256k1-sha-256\", \"publicKey\": \"03682b255c40d0cde8faee381a1a50bbb89980ff24539cb8518e294d3a63cefe12\" }] }] }\' true\n\n"
+            "\"subfulfillments\":[{ \"type\": \"secp256k1-sha-256\", \"publicKey\": \"03682b255c40d0cde8faee381a1a50bbb89980ff24539cb8518e294d3a63cefe12\" }] }] }\' true\n\n"
         ;
         throw std::runtime_error(msg);
     }

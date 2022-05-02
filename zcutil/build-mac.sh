@@ -58,8 +58,8 @@ fi
 WEBSOCKETS_ARG=''
 if [ "x${1:-}" = 'x--enable-websockets' ]
 then
-WEBSOCKETS_ARG='--enable-websockets=yes'
-shift
+    WEBSOCKETS_ARG='--enable-websockets=yes'
+    shift
 fi
 
 TRIPLET=`./depends/config.guess`

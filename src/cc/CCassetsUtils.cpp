@@ -15,6 +15,9 @@
 
 #include "CCassets.h"
 #include "CCtokens.h"
+#include "cc/CCupgrades.h"
+#include "CCTokelData.h"
+
 #include <iomanip> 
 
 vscript_t EncodeAssetOpRetV1(uint8_t assetFuncId, CAmount unit_price, vscript_t origpubkey, int32_t expiryHeight)
@@ -497,4 +500,19 @@ CAmount AssetsGetTxTokenInputs(Eval *eval, struct CCcontract_info *cpTokens, con
 		}
 	}
 	return inputs;
+}
+
+// check if either royalty or paid_value is dust in fill ask
+// nOutputValue is the total amount of paid_value + royalty
+bool AssetsFillAskIsDust(int32_t royaltyFract, CAmount nOutputValue, int32_t nHeight, bool &isRoyaltyDust)
+{
+    // nOutputValue is sum of paid_value + royalty_value
+    // check whether any of them is assets' dust (calc min of royalty and paid_value, compare with assets' dust):
+    if (nOutputValue / (int64_t)TKLROYALTY_DIVISOR * std::min(royaltyFract, (int32_t)TKLROYALTY_DIVISOR - royaltyFract) <= ASSETS_NORMAL_DUST)  {
+        // decide who should receive nOutputValue if one of values is dust
+        isRoyaltyDust = royaltyFract < (int64_t)TKLROYALTY_DIVISOR / 2 ? true : false;
+        //std::cerr << __func__ << " new calc, nOutputValue=" << nOutputValue << " test dust=" << nOutputValue / (int64_t)TKLROYALTY_DIVISOR * std::min(royaltyFract, (int32_t)TKLROYALTY_DIVISOR - royaltyFract) << " isRoyaltyDust=" << isRoyaltyDust << std::endl;
+        return true;
+    }
+    return false;
 }

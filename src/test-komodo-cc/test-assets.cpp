@@ -165,7 +165,6 @@ bool TestSignTx(const CKeyStore& keystore, CMutableTransaction& mtx, int32_t vin
 // in functions like cp->ismyvin() or TotalPubkeyNormalAmount()
 bool TestFinalizeTx(CMutableTransaction& mtx, struct CCcontract_info *cp, uint8_t *myprivkey, CAmount txfee, CScript opret)
 {
-    std::cerr << __func__ << " enterred" << std::endl;
     auto consensusBranchId = CurrentEpochBranchId(chainActive.Height() + 1, Params().GetConsensus());
     CAmount totaloutputs = 0LL;
     for (int i = 0; i < mtx.vout.size(); i ++) 
@@ -646,11 +645,13 @@ protected:
             std::cerr << __func__ << " cant get tokendata" << std::endl;
             return CTransaction(); 
         }
+        bool bGetTokelDataAsInt64 = false;
         if (vextraData.size() > 0)  {
-            GetTokelDataAsInt64(vextraData, TKLPROP_ROYALTY, royaltyFract);
+            bGetTokelDataAsInt64 = GetTokelDataAsInt64(vextraData, TKLPROP_ROYALTY, royaltyFract);
             if (royaltyFract > TKLROYALTY_DIVISOR-1)
                 royaltyFract = TKLROYALTY_DIVISOR-1; // royalty upper limit
         }
+        //std::cerr << __func__ << " vextraData.size()=" << vextraData.size() <<  " bGetTokelDataAsInt64=" << bGetTokelDataAsInt64 << std::endl;
         vuint8_t ownerpubkey = std::get<0>(tokenData);
 
         vuint8_t origpubkey;
@@ -662,8 +663,27 @@ protected:
 
         CAmount paid_nValue = paid_unit_price * fill_units;
         CAmount royaltyValue = royaltyFract > 0 ? paid_nValue / TKLROYALTY_DIVISOR * royaltyFract : 0;
-        if (royaltyFract > 0 && paid_nValue - royaltyValue <= ASSETS_NORMAL_DUST / royaltyFract * TKLROYALTY_DIVISOR - ASSETS_NORMAL_DUST)  // if value paid to seller less than when the royalty is minimum
-            royaltyValue = 0LL;
+
+        bool isRoyaltyDust = true;
+        if (royaltyFract > 0)  {
+            
+            if (CCUpgrades::IsUpgradeActive(eval.GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1) == false)  {
+                // corrected old calculation to allow tx creation and pass to fillask validation code 
+                // (note division on TKLROYALTY_DIVISOR first):
+                if(paid_nValue - royaltyValue <= ASSETS_NORMAL_DUST / (int64_t)TKLROYALTY_DIVISOR * royaltyFract  - ASSETS_NORMAL_DUST) { // if value paid to seller less than when the royalty is minimum
+                    royaltyValue = 0;
+                    //std::cerr << __func__ << " old calc corrected, paid_nValue - royaltyValue=" << paid_nValue - royaltyValue << " test dust=" << ASSETS_NORMAL_DUST / (int64_t)TKLROYALTY_DIVISOR * royaltyFract  - ASSETS_NORMAL_DUST << std::endl;
+                }
+            }
+            else {
+                // correct calculation:
+                if (AssetsFillAskIsDust(royaltyFract, paid_nValue, eval.GetCurrentHeight(), isRoyaltyDust))
+                    royaltyValue = 0; // all amount (with dust) to go to one pk (depending on which is not dust)
+            }
+        }
+
+
+        //std::cerr << __func__ << " royaltyFract=" << royaltyFract << " royaltyValue=" << royaltyValue << std::endl;
 
         if (TestAddNormalInputs(mtx, mypk, txfee) == 0LL)  {
             std::cerr << __func__ << " cant add normal inputs" << std::endl;
@@ -675,8 +695,10 @@ protected:
         mtx.vout.push_back(TokensV2::MakeTokensCC1vout(AssetsV2::EvalCode(), orig_assetoshis - fill_units, GetUnspendable(cpAssets, NULL)));  // token remainder on cc global addr
 
         //vout.1 purchased tokens to self token single-eval or dual-eval token+nonfungible cc addr:
-        mtx.vout.push_back(TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), fill_units, mypk));					
-        mtx.vout.push_back(CTxOut(paid_nValue - royaltyValue, CScript() << origpubkey << OP_CHECKSIG));		//vout.2 coins to ask originator's normal addr
+        mtx.vout.push_back(TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), fill_units, mypk));	
+
+        vuint8_t destpk = (royaltyValue > 0 || isRoyaltyDust) ? origpubkey : ownerpubkey; // if paid_value is dust send all amount to token owner				
+        mtx.vout.push_back(CTxOut(paid_nValue - royaltyValue, CScript() << destpk << OP_CHECKSIG));		//vout.2 coins to ask originator's normal addr
         if (royaltyValue > 0)       // note it makes the vout even if roaltyValue is 0
             mtx.vout.push_back(CTxOut(royaltyValue, CScript() << ownerpubkey << OP_CHECKSIG));	// vout.3 royalty to token owner
 
@@ -702,7 +724,9 @@ protected:
         data.pushKV("ownerpubkey", HexStr(ownerpubkey));      
         data.pushKV("origpubkey", HexStr(origpubkey));      
         data.pushKV("unit_price", unit_price);
-          
+        data.pushKV("royaltyFract", royaltyFract);
+        data.pushKV("royaltyValue", royaltyValue);          
+        data.pushKV("isRoyaltyDust", isRoyaltyDust);          
         return mtx;
     }
 
@@ -865,6 +889,8 @@ protected:
         data.pushKV("origpubkey", HexStr(origpubkey));
         data.pushKV("unit_price", unit_price);
         data.pushKV("expiryHeight", expiryHeight);
+        data.pushKV("royaltyFract", royaltyFract);
+        data.pushKV("royaltyValue", royaltyValue);
         return mtx;
     }
 
@@ -1644,7 +1670,7 @@ TEST_F(TestAssetsCC, tokenv2fillbid_royalty)
 {
     eval.SetCurrentHeight(111);  //set height 
 
-    for(int r = 0; r < 1000; r += 100)
+    for(int r = 100; r < 1000; r += 100)
     {
         UniValue data(UniValue::VOBJ); // some data returned from MakeTokenV2FillBidTx
         UniValue tokeldata(UniValue::VOBJ);
@@ -1654,27 +1680,31 @@ TEST_F(TestAssetsCC, tokenv2fillbid_royalty)
         cpAssets = CCinit(&assetsC, AssetsV2::EvalCode());  
 
         tokeldata.pushKV("royalty", r);
-        // use static mtx as it is added to static eval
-        static CTransaction mytxtokencreate = MakeTokenV2CreateTx(pk1, 1, tokeldata);
+        CTransaction mytxtokencreate = MakeTokenV2CreateTx(pk1, 1, tokeldata);
         uint256 mytokenid = mytxtokencreate.GetHash();
         eval.AddTx(mytxtokencreate);
 
-        static CTransaction mytxbid = MakeTokenV2BidTx(cpAssets, pk2, mytokenid, 1, ASSETS_NORMAL_DUST*2+1, 222);
+        CTransaction mytxbid = MakeTokenV2BidTx(cpAssets, pk2, mytokenid, 1, ASSETS_NORMAL_DUST*2+1, 222);
         eval.AddTx(mytxbid);
 
-        CMutableTransaction mytxfill = MakeTokenV2FillBidTx(cpTokens, pk1, mytokenid, mytxbid.GetHash(), 1, 0, data);  
-        ASSERT_FALSE(CTransaction(mytxfill).IsNull());
+        CMutableTransaction mytxfillbid = MakeTokenV2FillBidTx(cpTokens, pk1, mytokenid, mytxbid.GetHash(), 1, 0, data);  
+        ASSERT_FALSE(CTransaction(mytxfillbid).IsNull());
+        ASSERT_TRUE(data["royaltyFract"].get_int64() == r);
 
         // test: valid tokenv2fillbid
-        EXPECT_TRUE(TestRunCCEval(mytxfill));
+        EXPECT_TRUE(TestRunCCEval(mytxfillbid));
     }
 }
 
-TEST_F(TestAssetsCC, tokenv2fillask_royalty)
+// test old incorrect validation rule that failed royalties > 50%
+TEST_F(TestAssetsCC, tokenv2fillask_royalty_non_fixed)
 {
-    eval.SetCurrentHeight(111);  //set height 
+    eval.SetCurrentHeight(CCUpgrades::CCMIXEDMODE_SUBVER_1_TOKEL_HEIGHT - 1);
+    strcpy(ASSETCHAINS_SYMBOL, "TOKEL");
+    CCUpgrades::SelectUpgrades(ASSETCHAINS_SYMBOL);
 
-    for(int r = 0; r < 1000; r += 100)
+    ASSERT_FALSE(CCUpgrades::IsUpgradeActive(eval.GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1));
+    for(int r = 100; r < 1000; r += 100)
     {
         UniValue data(UniValue::VOBJ); // some data returned from MakeTokenV2FillBidTx
         UniValue tokeldata(UniValue::VOBJ);
@@ -1684,18 +1714,79 @@ TEST_F(TestAssetsCC, tokenv2fillask_royalty)
         cpAssets = CCinit(&assetsC, AssetsV2::EvalCode());  
 
         tokeldata.pushKV("royalty", r);
-        static CTransaction mytxtokencreate = MakeTokenV2CreateTx(pk1, 1, tokeldata);
+        CTransaction mytxtokencreate = MakeTokenV2CreateTx(pk1, 1, tokeldata);
         uint256 mytokenid = mytxtokencreate.GetHash();
         eval.AddTx(mytxtokencreate);
 
-        static CTransaction mytxask = MakeTokenV2AskTx(cpTokens, pk1, mytokenid, 1, ASSETS_NORMAL_DUST*2+1, 222);
+        CAmount price = 211110000;
+        CAmount asktokens = 1;
+        CAmount filltokens = 1;
+
+        // CTransaction mytxask = MakeTokenV2AskTx(cpTokens, pk1, mytokenid, 1, ASSETS_NORMAL_DUST*2+1, 222);
+        CTransaction mytxask = MakeTokenV2AskTx(cpTokens, pk1, mytokenid, asktokens, price, CCUpgrades::CCMIXEDMODE_SUBVER_1_TOKEL_HEIGHT + 222);
         eval.AddTx(mytxask);
 
-        CMutableTransaction mytxfill = MakeTokenV2FillAskTx(cpAssets, pk2, mytokenid, mytxask.GetHash(), 1, 0, data);  
-        ASSERT_FALSE(CTransaction(mytxfill).IsNull());
+        CMutableTransaction mytxfillask = MakeTokenV2FillAskTx(cpAssets, pk2, mytokenid, mytxask.GetHash(), filltokens, 0, data);  
+        ASSERT_FALSE(CTransaction(mytxfillask).IsNull());
+        ASSERT_TRUE(data["royaltyFract"].get_int64() == r);
+        ASSERT_TRUE(data["royaltyValue"].get_int64() > 0);  // must not be dust for this test
 
-        // test: valid tokenv2fillbid
-        EXPECT_TRUE(TestRunCCEval(mytxfill));
+        if (r <= 500)
+            EXPECT_TRUE(TestRunCCEval(mytxfillask)); // valid fillask if royalty <= 50%
+        else 
+            EXPECT_FALSE(TestRunCCEval(mytxfillask));
+    }
+}
+
+// test fill ask updated validation rule
+TEST_F(TestAssetsCC, tokenv2fillask_royalty_fixed)
+{
+    eval.SetCurrentHeight(CCUpgrades::CCMIXEDMODE_SUBVER_1_TOKEL_HEIGHT);
+    strcpy(ASSETCHAINS_SYMBOL, "TOKEL");
+    CCUpgrades::SelectUpgrades(ASSETCHAINS_SYMBOL);
+
+    ASSERT_TRUE(CCUpgrades::IsUpgradeActive(eval.GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1)); // fix in action
+    for(int r = 100; r < 1000; r += 100)
+    {
+        UniValue data(UniValue::VOBJ); // some data returned from MakeTokenV2FillBidTx
+        UniValue tokeldata(UniValue::VOBJ);
+        struct CCcontract_info *cpTokens, tokensC; 
+        cpTokens = CCinit(&tokensC, TokensV2::EvalCode());  
+        struct CCcontract_info *cpAssets, assetsC; 
+        cpAssets = CCinit(&assetsC, AssetsV2::EvalCode());  
+
+        tokeldata.pushKV("royalty", r);
+        CTransaction mytxtokencreate = MakeTokenV2CreateTx(pk1, 1, tokeldata);
+        uint256 mytokenid = mytxtokencreate.GetHash();
+        eval.AddTx(mytxtokencreate);
+        CAmount price = 4999;
+        CAmount asktokens = 1;
+        CAmount filltokens = 1;
+        // CTransaction mytxask = MakeTokenV2AskTx(cpTokens, pk1, mytokenid, 1, ASSETS_NORMAL_DUST*2+1, 222);
+        CTransaction mytxask = MakeTokenV2AskTx(cpTokens, pk1, mytokenid, asktokens, price, CCUpgrades::CCMIXEDMODE_SUBVER_1_TOKEL_HEIGHT + 222);
+        eval.AddTx(mytxask);
+
+        CMutableTransaction mytxfillask = MakeTokenV2FillAskTx(cpAssets, pk2, mytokenid, mytxask.GetHash(), filltokens, 0, data);  
+        ASSERT_FALSE(CTransaction(mytxfillask).IsNull());
+        ASSERT_TRUE(data["royaltyFract"].get_int64() == r);
+
+        if (r == 100 || r == 900) EXPECT_TRUE(data["royaltyValue"].get_int64() == 0); // for these royalties t should be dust
+
+        // test: valid tokenv2fillask
+        //std::cerr << __func__ << " good rule, is dust calc=" << (filltokens * price / (int64_t)TKLROYALTY_DIVISOR * std::min(r, (int32_t)TKLROYALTY_DIVISOR - r)) << " royaltyValue=" << data["royaltyValue"].get_int64() << std::endl;
+        if (filltokens * price / (int64_t)TKLROYALTY_DIVISOR * std::min(r, (int32_t)TKLROYALTY_DIVISOR - r) <= ASSETS_NORMAL_DUST) {
+            // have dust
+            EXPECT_TRUE(data["royaltyValue"].get_int64() == 0); 
+            EXPECT_TRUE(TestRunCCEval(mytxfillask));
+            EXPECT_TRUE(mytxfillask.vout[2].nValue  == filltokens * price);
+            EXPECT_TRUE(r < TKLROYALTY_DIVISOR/2 ? data["isRoyaltyDust"].get_bool() : !data["isRoyaltyDust"].get_bool()); // is dust royalty or paid_value
+        }
+        else  {
+            // no dust
+            EXPECT_TRUE(data["royaltyValue"].get_int64() > 0); 
+            EXPECT_TRUE(TestRunCCEval(mytxfillask));
+            EXPECT_TRUE(mytxfillask.vout[2].nValue + mytxfillask.vout[3].nValue  == filltokens * price);
+        }
     }
 }
 
@@ -1824,12 +1915,10 @@ TEST_F(TestAssetsCC, tokenv2cancelask_expired)
 	    struct CCcontract_info *cpTokens, tokensC;
         cpTokens = CCinit(&tokensC, TokensV2::EvalCode()); 
 
-        // use static mtx as it is added to static eval
-        static CTransaction txaskexp = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
+        CTransaction txaskexp = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
         ASSERT_FALSE(CTransaction(txaskexp).IsNull());
         eval.AddTx(txaskexp);
         EXPECT_TRUE(TestRunCCEval(txaskexp));
-
 
         UniValue data(UniValue::VOBJ);
         uint256 asktxid = txaskexp.GetHash();
@@ -1848,7 +1937,7 @@ TEST_F(TestAssetsCC, tokenv2cancelask_expired)
 	    struct CCcontract_info *cpTokens, tokensC;
         cpTokens = CCinit(&tokensC, TokensV2::EvalCode()); 
 
-        static CTransaction txaskexp = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
+        CTransaction txaskexp = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
         ASSERT_FALSE(CTransaction(txaskexp).IsNull());
         eval.AddTx(txaskexp);
         EXPECT_TRUE(TestRunCCEval(txaskexp));
@@ -1871,7 +1960,7 @@ TEST_F(TestAssetsCC, tokenv2cancelask_expired)
         cpTokens = CCinit(&tokensC, TokensV2::EvalCode()); 
 
         // use static mtx as it is added to static eval
-        static CTransaction txaskexp = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
+        CTransaction txaskexp = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
         ASSERT_FALSE(CTransaction(txaskexp).IsNull());
         eval.AddTx(txaskexp);
         EXPECT_TRUE(TestRunCCEval(txaskexp));
@@ -1899,7 +1988,7 @@ TEST_F(TestAssetsCC, tokenv2fillask_expired)
 	    struct CCcontract_info *cpTokens, tokensC;
         cpTokens = CCinit(&tokensC, TokensV2::EvalCode()); 
 
-        static CTransaction txaskexp = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
+        CTransaction txaskexp = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
         ASSERT_FALSE(CTransaction(txaskexp).IsNull());
         eval.AddTx(txaskexp);
         EXPECT_TRUE(TestRunCCEval(txaskexp));
@@ -2011,7 +2100,7 @@ TEST_F(TestAssetsCC, tokenv2cancelbid_expired)
         cpAssets0 = CCinit(&C0, AssetsV2::EvalCode());  
 
         // use static mtx as it is added to static eval
-        static CTransaction txbidexp = MakeTokenV2BidTx(cpAssets0, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
+        CTransaction txbidexp = MakeTokenV2BidTx(cpAssets0, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
         ASSERT_FALSE(CTransaction(txbidexp).IsNull());
         eval.AddTx(txbidexp);
         EXPECT_TRUE(TestRunCCEval(txbidexp));
@@ -2034,7 +2123,7 @@ TEST_F(TestAssetsCC, tokenv2cancelbid_expired)
 	    struct CCcontract_info *cpAssets0, C0; 
         cpAssets0 = CCinit(&C0, AssetsV2::EvalCode());  
 
-        static CTransaction txbidexp = MakeTokenV2BidTx(cpAssets0, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
+        CTransaction txbidexp = MakeTokenV2BidTx(cpAssets0, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
         ASSERT_FALSE(CTransaction(txbidexp).IsNull());
         eval.AddTx(txbidexp);
         EXPECT_TRUE(TestRunCCEval(txbidexp));
@@ -2057,7 +2146,7 @@ TEST_F(TestAssetsCC, tokenv2cancelbid_expired)
         cpAssets0 = CCinit(&C0, AssetsV2::EvalCode());  
 
         // use static mtx as it is added to static eval
-        static CTransaction txbidexp = MakeTokenV2BidTx(cpAssets0, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
+        CTransaction txbidexp = MakeTokenV2BidTx(cpAssets0, pk1, tokenid1, 2, 10000, 222); // set expiry height 222
         ASSERT_FALSE(CTransaction(txbidexp).IsNull());
         eval.AddTx(txbidexp);
         EXPECT_TRUE(TestRunCCEval(txbidexp));
@@ -2085,7 +2174,7 @@ TEST_F(TestAssetsCC, tokenv2fillbid_expired)
 	    struct CCcontract_info *cpAssets, assetsC;
         cpAssets = CCinit(&assetsC, AssetsV2::EvalCode()); 
 
-        static CTransaction txbidexp = MakeTokenV2BidTx(cpAssets, pk1, tokenid2, 2, 10000, 222); // set expiry height 222
+        CTransaction txbidexp = MakeTokenV2BidTx(cpAssets, pk1, tokenid2, 2, 10000, 222); // set expiry height 222
         ASSERT_FALSE(CTransaction(txbidexp).IsNull());
         eval.AddTx(txbidexp);
         EXPECT_TRUE(TestRunCCEval(txbidexp));

@@ -229,7 +229,7 @@ void Shutdown()
 
     StopHTTPRPC();
 #ifdef ENABLE_WEBSOCKETS
-    StopWebSockets();
+    ws::StopWebSockets();
 #endif
     StopREST();
     StopRPC();
@@ -911,7 +911,7 @@ bool AppInitServers(boost::thread_group& threadGroup)
     if (!StartHTTPRPC())
         return false;
 #ifdef ENABLE_WEBSOCKETS
-    if (!StartWebSockets(threadGroup))
+    if (!ws::StartWebSockets(threadGroup))
         return false;
 #endif
     if (GetBoolArg("-rest", false) && !StartREST())
@@ -2097,7 +2097,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     SetRPCWarmupFinished();
 #ifdef ENABLE_WEBSOCKETS
-    SetWebSocketsWarmupFinished();
+    ws::SetWebSocketsWarmupFinished();
 #endif
     uiInterface.InitMessage(_("Done loading"));
 

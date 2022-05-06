@@ -35,6 +35,9 @@
 #include "univalue.h"
 #include "rpc/server.h"
 
+#include "cc/CCupgrades.h"
+
+
 //#include <functional>
 
 #ifndef ENABLE_WEBSOCKETS
@@ -42,6 +45,9 @@
 #endif
 
 #include "komodo_websockets.h"
+
+namespace ws
+{
 
 static CAddrMan wsaddrman;
 
@@ -69,6 +75,16 @@ static boost::thread_group wsThreadGroup;
 unsigned short GetWebSocketListenPort()
 {
     return (unsigned short)(GetArg("-wsport", 8192));
+}
+
+int GetHeight()
+{
+    LOCK(cs_main);
+    CBlockIndex* pindex;
+    if ((pindex = chainActive.LastTip()) != 0)
+        return pindex->GetHeight();
+    else
+        return 0;
 }
 
 CAddress GetLocalWebSocketAddress(const CNetAddr *paddrPeer)
@@ -227,7 +243,7 @@ bool ProcessWsMessage(CNode* pfrom, std::string strCommand, CDataStream& vRecv, 
         {
             pfrom->PushMessage("reject", strCommand, REJECT_DUPLICATE, std::string("Duplicate version message"));
             Misbehaving(pfrom->GetId(), 1);
-            return false;
+            return true;
         }
 
         int64_t nTime;
@@ -245,26 +261,37 @@ bool ProcessWsMessage(CNode* pfrom, std::string strCommand, CDataStream& vRecv, 
         if (nVersion < minVersion)
         {
             // disconnect from peers older than this proto version
-            LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
+            LogPrintf("wspeer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
             pfrom->PushMessage("reject", strCommand, REJECT_OBSOLETE,
                             strprintf("Version must be %d or greater", minVersion));
             pfrom->fDisconnect = true;
-            return false;
+            return true;
         }
 
-        // not relevant to websockets:
+        // zcash upgrades are not relevant to websockets:
         // Reject incoming connections from nodes that don't know about the current epoch
         /*const Consensus::Params& params = Params().GetConsensus();
         auto currentEpoch = CurrentEpoch(GetHeight(), params);
         if (nVersion < params.vUpgrades[currentEpoch].nProtocolVersion)
         {
-            LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
+            LogPrintf("wspeer=%d using obsolete version %i; disconnecting\n", pfrom->id, nVersion);
             pfrom->PushMessage("reject", strCommand, REJECT_OBSOLETE,
                             strprintf("Version must be %d or greater",
                             params.vUpgrades[currentEpoch].nProtocolVersion));
             pfrom->fDisconnect = true;
             return false;
         }*/
+
+        // check min cc version
+        if (nVersion < GetCurrentUpgradeInfo(GetHeight(), CCUpgrades::GetUpgrades()).nProtocolVersion)
+        {
+            LogPrint("websockets", "wspeer=%d using obsolete version %i; disconnecting by ccupgrades\n", pfrom->id, nVersion);
+            pfrom->PushMessage("reject", strCommand, REJECT_OBSOLETE,
+                            strprintf("Version must be %d or greater",
+                            GetCurrentUpgradeInfo(GetHeight(), CCUpgrades::GetUpgrades()).nProtocolVersion));
+            pfrom->fDisconnect = true;
+            return true;
+        }
         
         if (!vRecv.empty())
             vRecv >> addrFrom >> nNonce;
@@ -1657,13 +1684,14 @@ UniValue getwspeers(const UniValue& params, bool fHelp, const CPubKey& remotepk)
     return result;
 }
 
+}; // namespace ws
 
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
-    { "hidden",               "printaddrman",          &printaddrman,          true  },
-    { "hidden",               "printwsaddrman",          &printwsaddrman,          true  },
-    { "hidden",               "getwspeers",          &getwspeers,          true  },
+    { "hidden",               "printaddrman",          &ws::printaddrman,          true  },
+    { "hidden",               "printwsaddrman",          &ws::printwsaddrman,          true  },
+    { "hidden",               "getwspeers",          &ws::getwspeers,          true  },
 };
 
 void RegisterWebSocketsRPCCommands(CRPCTable &tableRPC)

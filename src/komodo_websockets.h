@@ -22,12 +22,15 @@
 
 //using websocketpp::lib::bind;
 
+namespace ws
+{
+
 static const int WSADDR_VERSION = 170008;
 #define WEBSOCKETS_TIMEOUT_INTERVAL 120
 
 
-//struct wsserver_mt_config : public websocketpp::config::asio {  // no tls
-struct wsserver_mt_config : public websocketpp::config::asio_tls {  // tls
+// struct wsserver_mt_config : public websocketpp::config::asio {  // no tls
+struct wsserver_mt_config : public websocketpp::config::asio_tls { // tls
 
     // pull default settings from our core config
     static bool const enable_multithreading = true;
@@ -35,18 +38,18 @@ struct wsserver_mt_config : public websocketpp::config::asio_tls {  // tls
     struct transport_config : public websocketpp::config::core::transport_config {
         static bool const enable_multithreading = true;
     };
-        
-    /// permessage_compress extension
-    //struct permessage_deflate_config {};
 
-    //typedef websocketpp::extensions::permessage_deflate::enabled
-    //    <permessage_deflate_config> permessage_deflate_type;
+    /// permessage_compress extension
+    // struct permessage_deflate_config {};
+
+    // typedef websocketpp::extensions::permessage_deflate::enabled
+    //     <permessage_deflate_config> permessage_deflate_type;
 };
 
-//typedef websocketpp::server<wsserver_mt_config> wsserver;   // no tls
-typedef websocketpp::server<websocketpp::config::asio_tls> wsserver;  // tls
+// typedef websocketpp::server<wsserver_mt_config> wsserver;   // no tls
+typedef websocketpp::server<websocketpp::config::asio_tls> wsserver; // tls
 
-//transport::asio::tls_socket::endpoint 
+// transport::asio::tls_socket::endpoint
 
 typedef websocketpp::client<websocketpp::config::asio_client> wsclient;
 
@@ -64,8 +67,10 @@ bool StartWebSockets(boost::thread_group& threadGroup);
 void SetWebSocketsWarmupFinished();
 void StopWebSockets();
 
-int GetnScore(const CService& addr); //net.cpp
-
 bool ProcessWsMessage(CNode* pfrom, std::string strCommand, CDataStream& vRecv, int64_t nTimeReceived);
+
+}; // namespace ws
+
+int GetnScore(const CService& addr); // from net.cpp
 
 #endif 

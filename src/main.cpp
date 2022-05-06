@@ -7530,7 +7530,7 @@ void static ProcessGetData(CNode* pfrom)
 
 bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTimeReceived)
 {
-    int32_t nProtocolVersion;
+    //int32_t nProtocolVersion;
     const CChainParams& chainparams = Params();
     LogPrint("net", "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->id);
     //if ( KOMODO_NSPV_SUPERLITE )
@@ -7588,6 +7588,17 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             return false;
         }
         
+        // check min cc version
+        if (nVersion < GetCurrentUpgradeInfo(GetHeight(), CCUpgrades::GetUpgrades()).nProtocolVersion)
+        {
+            LogPrintf("peer=%d using obsolete version %i, needed %d; disconnecting by ccupgrades\n", pfrom->id, nVersion, GetCurrentUpgradeInfo(GetHeight(), CCUpgrades::GetUpgrades()).nProtocolVersion);
+            pfrom->PushMessage("reject", strCommand, REJECT_OBSOLETE,
+                            strprintf("Version must be %d or greater",
+                            GetCurrentUpgradeInfo(GetHeight(), CCUpgrades::GetUpgrades()).nProtocolVersion));
+            pfrom->fDisconnect = true;
+            return false;
+        }
+
         if (!vRecv.empty())
             vRecv >> addrFrom >> nNonce;
         if (!vRecv.empty()) {
@@ -7891,6 +7902,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
     // the getaddr message mitigates the attack.
     else if ((strCommand == "getaddr") && (pfrom->fInbound))
     {
+        std::cerr << __func__ << " in getaddr, node=" << pfrom->id << std::endl;
         // Only send one GetAddr response per connection to reduce resource waste
         //  and discourage addr stamping of INV announcements.
         if (pfrom->fSentAddr) {
@@ -7902,7 +7914,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         pfrom->vAddrToSend.clear();
         vector<CAddress> vAddr = addrman.GetAddr();
         BOOST_FOREACH(const CAddress &addr, vAddr)
-        pfrom->PushAddress(addr);
+            pfrom->PushAddress(addr);
+        std::cerr << __func__ << " on getaddr pushed addresses=" << vAddr.size() << " node=" << pfrom->id << std::endl;
     }
     // temporary optional nspv message processing
     else if ((nLocalServices & NODE_NSPV) &&
@@ -8599,7 +8612,7 @@ bool ProcessMessages(CNode* pfrom)
         {
 
 #ifdef ENABLE_WEBSOCKETS
-            if (pfrom->hSocket != INVALID_SOCKET || !(fRet = ProcessWsMessage(pfrom, strCommand, vRecv, msg.nTime))) {
+            if (pfrom->hSocket != INVALID_SOCKET || !(fRet = ws::ProcessWsMessage(pfrom, strCommand, vRecv, msg.nTime))) {
 #endif
                 fRet = ProcessMessage(pfrom, strCommand, vRecv, msg.nTime);
 #ifdef ENABLE_WEBSOCKETS

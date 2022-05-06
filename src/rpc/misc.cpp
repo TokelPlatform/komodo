@@ -35,6 +35,7 @@
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
+#include "komodo_version.h"
 
 #include <stdint.h>
 
@@ -60,8 +61,9 @@ using namespace std;
  * Or alternatively, create a specific query method for the information.
  **/
 
-#define KOMODO_VERSION "0.6.1"
+// #define KOMODO_VERSION "0.6.1"  // see komodo_version.h
 #define VERUS_VERSION "0.4.0g"
+// see also TOKEL_VERSION in komodo_version.h
 
 int32_t getera(int timestamp)
 {
@@ -211,7 +213,8 @@ UniValue getinfo(const UniValue& params, bool fHelp, const CPubKey& mypk)
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("version", CLIENT_VERSION));
     obj.push_back(Pair("protocolversion", PROTOCOL_VERSION));
-    obj.push_back(Pair("KMDversion", KOMODO_VERSION));
+    obj.push_back(Pair("KMDversion", FormatVersion(KOMODO_VERSION)));
+    obj.push_back(Pair("TokelVersion", FormatVersion(TOKEL_VERSION)));
     obj.push_back(Pair("synced", KOMODO_INSYNC!=0));
     //obj.push_back(Pair("VRSCversion", VERUS_VERSION));
     obj.push_back(Pair("notarized", notarized_height));

@@ -14,31 +14,48 @@
  ******************************************************************************/
 
 #include <iostream>
+#include <assert.h>
 #include "CCupgrades.h"
 
 namespace CCUpgrades {
 
     class CUpgradesContainer {
     private: 
-        void addUpgradeActive(const std::string &chainName, UPGRADE_ID upgradeId, int32_t nHeight)
+
+
+        void init(const std::string &chainName, int nProtocolVersion)
         {
-            mChainUpgrades[chainName].setActivationHeight(upgradeId, nHeight, UPGRADE_ACTIVE);
+            assert(mChainUpgrades.find(chainName) == mChainUpgrades.end()); // mChainUpgrades[chainName] must be empty
+            mChainUpgrades[chainName].setActivationHeight(CCASSETS_INITIAL_CHAIN, 0, UPGRADE_ACTIVE, nProtocolVersion);
+        }
+
+        void addUpgradeActive(const std::string &chainName, UPGRADE_ID upgradeId, int32_t nHeight, int nProtocolVersion)
+        {
+            assert(mChainUpgrades.find(chainName) != mChainUpgrades.end()); // mChainUpgrades[chainName] must be initialised
+            mChainUpgrades[chainName].setActivationHeight(upgradeId, nHeight, UPGRADE_ACTIVE, nProtocolVersion);
         }
     public:
         CUpgradesContainer()  {
 
             // default upgrades: always enable all fixes
-            defaultUpgrades.IsAllEnabled = true;
+            init("TOKEL", CCOLDDEFAULT_PROTOCOL_VERSION);
+            init("TKLTEST", CCOLDDEFAULT_PROTOCOL_VERSION);
+            init("DIMXY24", CCOLDDEFAULT_PROTOCOL_VERSION);
+            init("DIMXY28", CCOLDDEFAULT_PROTOCOL_VERSION);
+            init("TKLTEST2", CCOLDDEFAULT_PROTOCOL_VERSION);
+            init("DIMXY32", CCOLDDEFAULT_PROTOCOL_VERSION);
 
             // CCASSETS_OPDROP_VALIDATE_FIX activation
-            addUpgradeActive("TOKEL", CCASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
-            addUpgradeActive("TKLTEST", CCASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TKLTEST_HEIGHT);
+            addUpgradeActive("TOKEL", CCASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TOKEL_HEIGHT, CCOLDDEFAULT_PROTOCOL_VERSION);
+            addUpgradeActive("TKLTEST", CCASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TKLTEST_HEIGHT, CCOLDDEFAULT_PROTOCOL_VERSION);
 
             // CCMIXEDMODE_SUBVER_1 activation
-            addUpgradeActive("TOKEL", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TOKEL_HEIGHT);
-            addUpgradeActive("TKLTEST", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TKLTEST_HEIGHT);
-            addUpgradeActive("DIMXY24", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_DIMXY24_HEIGHT);
-            addUpgradeActive("TKLTEST2", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TKLTEST2_HEIGHT);
+            addUpgradeActive("TOKEL", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TOKEL_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
+            addUpgradeActive("TKLTEST", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TKLTEST_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
+            addUpgradeActive("DIMXY24", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_DIMXY24_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
+            addUpgradeActive("DIMXY28", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_DIMXY28_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
+            addUpgradeActive("DIMXY32", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_DIMXY32_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
+            addUpgradeActive("TKLTEST2", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TKLTEST2_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
 
             // add more chains here...
             // ...
@@ -69,13 +86,27 @@ namespace CCUpgrades {
 
 
     bool IsUpgradeActive(int32_t nHeight, const ChainUpgrades &chainUpgrades, UPGRADE_ID id) {
-        if (chainUpgrades.IsAllEnabled)
-            return true;
+        if (chainUpgrades.mUpgrades.size() == 0)
+            return chainUpgrades.defaultUpgrade.status == UPGRADE_ACTIVE;
         else {
             std::map<UPGRADE_ID, UpgradeInfo>::const_iterator it = chainUpgrades.mUpgrades.find(id);
             if (it != chainUpgrades.mUpgrades.end())
                 return nHeight >= it->second.nActivationHeight ? it->second.status == UPGRADE_ACTIVE : false;
             return false;
+        }
+    }
+    
+    UpgradeInfo GetCurrentUpgradeInfo(int32_t nHeight, const ChainUpgrades &chainUpgrades)
+    {
+        if (chainUpgrades.mUpgrades.size() == 0)
+            return chainUpgrades.defaultUpgrade;
+        else {
+            UpgradeInfo current = chainUpgrades.mUpgrades.find(CCASSETS_INITIAL_CHAIN)->second; // set as initial chain info
+            for (auto const & it : chainUpgrades.mUpgrades) {
+                if (nHeight >= it.second.nActivationHeight)
+                    current = it.second;  // find latest active upgrade 
+            }
+            return current;
         }
     }
 

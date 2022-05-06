@@ -21,6 +21,8 @@
 #include <map>
 #include <vector>
 
+#include "version.h"
+
 namespace CCUpgrades  {
 
     // asset chain activation heights
@@ -30,36 +32,48 @@ namespace CCUpgrades  {
     const int32_t CCMIXEDMODE_SUBVER_1_TKLTEST_HEIGHT = 100000000;  // TBD
     const int32_t CCMIXEDMODE_SUBVER_1_TOKEL_HEIGHT   = 100000000;  // TBD
     const int32_t CCMIXEDMODE_SUBVER_1_DIMXY24_HEIGHT = 100000000;  // TBD
+    const int32_t CCMIXEDMODE_SUBVER_1_DIMXY28_HEIGHT = 100000000;  // TBD
+    const int32_t CCMIXEDMODE_SUBVER_1_DIMXY32_HEIGHT = 100000000;  // TBD
     const int32_t CCMIXEDMODE_SUBVER_1_TKLTEST2_HEIGHT = 57544;  // 25 apr 2022 4:10p.m
+    // latest protocol version:
+    const int     CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION = 170010; 
+    // pre-upgrade protocol version:
+    const int     CCOLDDEFAULT_PROTOCOL_VERSION = 170009;  
+    const int     CCNEWCHAIN_PROTOCOL_VERSION = CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION;  
 
     enum UPGRADE_STATUS {
         UPGRADE_ACTIVE = 1,
     };
 
     enum UPGRADE_ID  {
+        CCASSETS_INITIAL_CHAIN       = 0x00,
         CCASSETS_OPDROP_VALIDATE_FIX = 0x01,
-        CCMIXEDMODE_SUBVER_1         = 0x02,  // new cc secp256k1 cond type and eval param
+        CCMIXEDMODE_SUBVER_1         = 0x02,  // new cc secp256k1 cond type and eval param, assets cc royalty fixes
     };
 
     struct UpgradeInfo {
         int32_t nActivationHeight;
         UPGRADE_STATUS status;
+        int nProtocolVersion;   // used for disconnecting old nodes
     };
 
     class ChainUpgrades {
     public:
-        ChainUpgrades() : IsAllEnabled(false) { }
-        void setActivationHeight(UPGRADE_ID upgId, int32_t nHeight, UPGRADE_STATUS upgStatus) {
-            mUpgrades[upgId] = { nHeight, upgStatus };
+        ChainUpgrades() : defaultUpgrade({0, UPGRADE_ACTIVE, CCNEWCHAIN_PROTOCOL_VERSION}) { }
+        void setActivationHeight(UPGRADE_ID upgId, int32_t nHeight, UPGRADE_STATUS upgStatus, int nProtocolVersion) {
+            mUpgrades[upgId] = { nHeight, upgStatus, nProtocolVersion };
         }
+        
     public:
         std::map<UPGRADE_ID, UpgradeInfo> mUpgrades;
-        bool IsAllEnabled;
+        const UpgradeInfo defaultUpgrade;
     };
 
     void SelectUpgrades(const std::string &chainName);
     const ChainUpgrades &GetUpgrades();
     bool IsUpgradeActive(int32_t nHeight, const ChainUpgrades &chainUpgrades, UPGRADE_ID upgId);
+    UpgradeInfo GetCurrentUpgradeInfo(int32_t nHeight, const ChainUpgrades &chainUpgrades);
+
 }; // namespace CCUpgrades
 
 #endif // #ifndef CC_UPGRADES_H

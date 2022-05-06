@@ -28,6 +28,7 @@
 #include "util.h"
 #include "version.h"
 #include "deprecation.h"
+#include "komodo_version.h"
 
 #include <boost/foreach.hpp>
 
@@ -426,7 +427,7 @@ UniValue getdeprecationinfo(const UniValue& params, bool fHelp, const CPubKey& m
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("version", CLIENT_VERSION));
     obj.push_back(Pair("subversion",
-        FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, std::vector<string>())));
+        FormatSubVersion(CLIENT_NAME, KOMODO_VERSION, { FormatVersion(TOKEL_VERSION) })));
     obj.push_back(Pair("deprecationheight", DEPRECATION_HEIGHT));
 
     return obj;

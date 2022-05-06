@@ -44,7 +44,7 @@ then
 Usage:
 $0 --help
   Show this help message and exit.
-$0 [ --enable-lcov || --disable-tests ] [ --disable-mining ] [ --enable-proton ] [ --disable-libs ] [ --enable-debug ] [--enable-websockets] [ MAKEARGS... ]
+$0 [ --enable-lcov || --disable-tests ] [ --disable-mining ] [ --enable-proton ] [ --disable-libs ] [--enable-websockets] [ --enable-debug ] [ MAKEARGS... ]
   Build Komodo and most of its transitive dependencies from
   source. MAKEARGS are applied to both dependencies and Komodo itself.
   If --enable-lcov is passed, Komodo is configured to add coverage
@@ -55,7 +55,9 @@ $0 [ --enable-lcov || --disable-tests ] [ --disable-mining ] [ --enable-proton ]
   If --enable-proton is passed, Komodo is configured to build the Apache Qpid Proton
   library required for AMQP support. This library is not built by default.
   It must be passed after the test/mining arguments, if present.
-  If --enable-websockets is passed, Komodo is configured to build with webspckets support for nspv protocol
+  If --enable-websockets is passed, Komodo is configured to build with websockets support for nspv protocol
+  If --enable-debug is passed, Komodo is built with debugging information. It
+  must be passed after the previous arguments, if present.
 EOF
     exit 0
 fi

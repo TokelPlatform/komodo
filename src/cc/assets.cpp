@@ -368,7 +368,7 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                         // old bad calc: 
                         // incorrect use of vin_coins to calculate royalty (this is true only for nfts)
                         CAmount royaltyValue = royaltyFract > 0 ? vin_coins / TKLROYALTY_DIVISOR * royaltyFract : 0;
-                        std::cerr << __func__ << " fillbid=" << royaltyValue  << " dust=" << ASSETS_NORMAL_DUST << std::endl;
+                        // std::cerr << __func__ << " fillbid=" << royaltyValue  << " dust=" << ASSETS_NORMAL_DUST << std::endl;
                         if (royaltyValue <= ASSETS_NORMAL_DUST)  {
                             isRoyaltyDust = true; // always to order creator
                             r = 0;  // no royalty vout
@@ -585,7 +585,7 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                         // old bad calc: only if royalty<=50% works bcz of loss of significance bcz of division by royaltyFract first.
                         // also wrong assumption that paid_value is subtracted by the royalty (in fact it is sum of both if the royalty is dust)
                         // suppose the nValue is such that the royalty_value is assets' dust:
-                        std::cerr << __func__ << " fillask tx.vout[2].nValue=" << tx.vout[2].nValue  << " dust=" << ASSETS_NORMAL_DUST / royaltyFract * TKLROYALTY_DIVISOR - ASSETS_NORMAL_DUST << std::endl;
+                        // std::cerr << __func__ << " fillask tx.vout[2].nValue=" << tx.vout[2].nValue  << " dust=" << ASSETS_NORMAL_DUST / royaltyFract * TKLROYALTY_DIVISOR - ASSETS_NORMAL_DUST << std::endl;
                         if (tx.vout[2].nValue <= ASSETS_NORMAL_DUST / royaltyFract * TKLROYALTY_DIVISOR - ASSETS_NORMAL_DUST)  {  // if value paid to seller less than when the royalty is minimum
                             isRoyaltyDust = true; // always to order creator
                             r = 0;  // no royalty vout bcz of dust

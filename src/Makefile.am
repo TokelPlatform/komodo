@@ -642,7 +642,7 @@ endif
 if ENABLE_WALLET
 wallet_utility_SOURCES = wallet-utility.cpp
 wallet_utility_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-wallet_utility_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+wallet_utility_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) $(CXXFLAGS)
 wallet_utility_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 endif
 
@@ -731,7 +731,7 @@ libzcash_a_CPPFLAGS = -DMULTICORE -fopenmp -fPIC -DBINARY_OUTPUT -DCURVE_ALT_BN1
 	$(HARDENED_CXXFLAGS) $(HARDENED_LDFLAGS) -pipe $(SAN_LDFLAGS) \
 	-Wstack-protector $(SAN_CXXFLAGS) -fstack-protector-all -fPIE -fvisibility=hidden \
 	-DSTATIC $(BITCOIN_INCLUDES)
-libzcash_a_CXXFLAGS = $(SAN_CXXFLAGS) $(HARDENED_CXXFLAGS) -fwrapv -fno-strict-aliasing
+libzcash_a_CXXFLAGS = $(CXXFLAGS) $(SAN_CXXFLAGS) $(HARDENED_CXXFLAGS) -fwrapv -fno-strict-aliasing
 libzcash_a_LDFLAGS = $(SAN_LDFLAGS) $(HARDENED_LDFLAGS)
 libzcash_a_CPPFLAGS += -DMONTGOMERY_OUTPUT
 
@@ -874,9 +874,22 @@ customd_LDADD += \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBVERUS_CRYPTO) \
   $(LIBVERUS_PORTABLE_CRYPTO) \
-  $(LIBZCASH_LIBS)
+  $(LIBZCASH_LIBS) \
+  $(LIBCC) \
+  -lcurl
 
 customd_LDADD += $(LIBDYNCUSTOMCONSENSUS) $(LIBSECP256K1)
+
+if ENABLE_WEBSOCKETS
+# link statically openssl
+customd_LDADD += \
+  $(LIBSSLSTATIC) \
+  $(LIBCRYPTOSTATIC)
+else
+customd_LDADD += \
+  $(SSL_LIBS) \
+  $(CRYPTO_LIBS)
+endif
 
 if ENABLE_PROTON
 customd_LDADD += $(LIBBITCOIN_PROTON) $(PROTON_LIBS)

@@ -171,7 +171,7 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
     vuint8_t vorigpubkey, vin_origpubkey, vextraData;
     TokenDataTuple tokenData;
 	uint8_t funcid, evalCodeInOpret; 
-	char destaddr[KOMODO_ADDRESS_BUFSIZE], origNormalAddr[KOMODO_ADDRESS_BUFSIZE], ownerNormalAddr[KOMODO_ADDRESS_BUFSIZE]; 
+	char destaddr[KOMODO_ADDRESS_BUFSIZE], origNormalAddr[KOMODO_ADDRESS_BUFSIZE], tokenCreatorNormalAddr[KOMODO_ADDRESS_BUFSIZE]; 
     char origTokensCCaddr[KOMODO_ADDRESS_BUFSIZE], origCCaddrDummy[KOMODO_ADDRESS_BUFSIZE]; 
     char tokensDualEvalUnspendableCCaddr[KOMODO_ADDRESS_BUFSIZE], origAssetsCCaddr[KOMODO_ADDRESS_BUFSIZE], globalAssetsCCaddr[KOMODO_ADDRESS_BUFSIZE];
     char markerCCaddress[KOMODO_ADDRESS_BUFSIZE];
@@ -206,8 +206,8 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
             royaltyFract = TKLROYALTY_DIVISOR-1; // royalty upper limit
     }
 
-    vuint8_t ownerpubkey = std::get<0>(tokenData);
-    Getscriptaddress(ownerNormalAddr, CScript() << ownerpubkey << OP_CHECKSIG);
+    vuint8_t vtokenCreatorPubkey = std::get<0>(tokenData);
+    Getscriptaddress(tokenCreatorNormalAddr, CScript() << vtokenCreatorPubkey << OP_CHECKSIG);
 
 	// find dual-eval tokens global addr where tokens are locked:
 	GetTokensCCaddress(cpAssets, tokensDualEvalUnspendableCCaddr, GetUnspendable(cpAssets, NULL), A::IsMixed());
@@ -353,16 +353,38 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                 if (royaltyFract < 0LL || royaltyFract >= TKLROYALTY_DIVISOR)
                     return eval->Invalid("invalid royalty value");
 
-                CAmount royaltyValue = royaltyFract > 0 ? vin_coins / TKLROYALTY_DIVISOR * royaltyFract : 0;
-                if (royaltyValue <= ASSETS_NORMAL_DUST)
-                    royaltyValue = 0LL; // reset if dust
-                int32_t r = royaltyValue > 0LL ? 1 : 0;
-                /*int32_t r = 0;
-                if (royaltyFract > 0 && tx.vout[1].nValue > ASSETS_NORMAL_DUST / royaltyFract * TKLROYALTY_DIVISOR - ASSETS_NORMAL_DUST)  // if vout1 > min  
-                    r = 1;
-                if (royaltyFract > 0)
-                    std::cerr << __func__ << " r=" << r << " tx.vout[1].nValue=" << tx.vout[1].nValue << " min-vout1=" << (ASSETS_NORMAL_DUST / royaltyFract * TKLROYALTY_DIVISOR - ASSETS_NORMAL_DUST) << std::endl;*/
-                //std::cerr << __func__ << " royaltyFract=" << royaltyFract << " royaltyValue=" << royaltyValue << std::endl;
+                // moved under CCUpgrades condition:
+                // CAmount royaltyValue = royaltyFract > 0 ? vin_coins / TKLROYALTY_DIVISOR * royaltyFract : 0;
+                //if (royaltyValue <= ASSETS_NORMAL_DUST)
+                //    royaltyValue = 0LL; // reset if dust
+
+                int32_t r = royaltyFract > 0LL ? 1 : 0;
+                bool isRoyaltyDust = true; // if no royalty then to order creator
+
+                // check if royalty or paid_value is not dust
+                if (royaltyFract > 0)  
+                {
+                    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1) == false)  {
+                        // old bad calc: 
+                        // incorrect use of vin_coins to calculate royalty (this is true only for nfts)
+                        CAmount royaltyValue = royaltyFract > 0 ? vin_coins / TKLROYALTY_DIVISOR * royaltyFract : 0;
+                        std::cerr << __func__ << " fillbid=" << royaltyValue  << " dust=" << ASSETS_NORMAL_DUST << std::endl;
+                        if (royaltyValue <= ASSETS_NORMAL_DUST)  {
+                            isRoyaltyDust = true; // always to order creator
+                            r = 0;  // no royalty vout
+                        } 
+                    }
+                    else { 
+                        // upgrade June 2022 HF
+                        int32_t tokenVout = 1;
+                        // find first cc vout (token to buyer):
+                        for(; tokenVout < tx.vout.size() && !tx.vout[tokenVout].scriptPubKey.IsPayToCryptoCondition(); tokenVout ++) {}
+                        if (tokenVout == tx.vout.size()) return eval->Invalid("could not find token vout for fillbid");
+                        // fixed dust calc:
+                        if (AssetsFillOrderIsDust(royaltyFract, tx.vout[tokenVout].nValue * vin_unit_price, isRoyaltyDust))
+                            r = 0;  // no dedicated royalty vout, total goes to tx.vout[2].nValue
+                    }
+                }
 
                 CAmount assetoshis = tx.vout[0].nValue + tx.vout[1].nValue + (r ? tx.vout[2].nValue : 0LL);
                 if( vin_coins != assetoshis )             // coins -> global cc address (remainder) + normal self address
@@ -376,9 +398,9 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                     ccvouts ++;
                 }
                 else 
-                {   // if remaining_units == 0 (empty bid) then the remainder should go to the originator normal address, if it is not dust
+                {   // if remaining_units == 0 (empty bid) then the remainder should go to the order originator normal address, if it is not dust
                     if (!A::ConstrainVout(tx.vout[0], NORMALVOUT, origNormalAddr, 0LL, 0))  // remainder less than token price should return to originator normal addr
-                        return eval->Invalid("vout0 should be originator normal address with remainder for fillbid");
+                        return eval->Invalid("vout0 should be order originator normal address with remainder for fillbid");
                 }
 
                 vin_tokens = AssetsGetTxTokenInputs(eval, cpTokens, tx);
@@ -405,7 +427,7 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                         return eval->Invalid("vout" + std::to_string(myTokenVout) + " should have tokens to originator cc addr for fillbid");
                     ccvouts ++;
                 }
-                if (!A::ConstrainVout(tx.vout[myNormalVout], NORMALVOUT, NULL, 0LL, 0))                            // amount paid for tokens goes to normal addr (we can't check 'self' address)
+                if (!A::ConstrainVout(tx.vout[myNormalVout], NORMALVOUT, NULL, 0LL, 0))                            // amount paid for tokens goes to normal addr (could be any address selected by token seller)
                     return eval->Invalid("vout " + std::to_string(myNormalVout) + " should be normal for fillbid");
 
                 if (tx.vout[0].nValue / unit_price > 0)  { // bid coins remainder sufficient for more tokens - marker should exist
@@ -418,12 +440,22 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                 CAmount received_value = r ? tx.vout[1].nValue + tx.vout[2].nValue : tx.vout[1].nValue; // vout1 paid value to seller, vout2 royalty to owner
                 CAmount paid_units = tx.vout[2+r].nValue;
                 if (!ValidateBidRemainder(unit_price, tx.vout[0].nValue, vin_coins, received_value, paid_units)) // check real price and coins spending from global addr
-                    return eval->Invalid("vout" + std::to_string(2+r) + " mismatched remainder for fillbid");
+                    return eval->Invalid("vout" + std::to_string(0) + " mismatched remainder for fillbid");
                 if (r) {
                     if ((tx.vout[1].nValue + tx.vout[2].nValue) / TKLROYALTY_DIVISOR * royaltyFract != tx.vout[2].nValue)  // validate royalty value
                         return eval->Invalid("vout2 invalid royalty amount for fillask");
-                    if (!A::ConstrainVout(tx.vout[2], NORMALVOUT, ownerNormalAddr, 0LL, 0))        // validate owner royalty dest
+                    if (!A::ConstrainVout(tx.vout[2], NORMALVOUT, tokenCreatorNormalAddr, 0LL, 0))        // validate owner royalty dest
                         return eval->Invalid("vout2 invalid royalty detination for fillask");
+                }
+                else {
+                    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))  
+                    {
+                        // validate that the paid value to go to the token owner if amount to seller is dust
+                        if (royaltyFract > 0 && r == 0 && !isRoyaltyDust)   {   // there is royalty dust and royalty is not dust --> send to token owner
+                            if (!A::ConstrainVout(tx.vout[myNormalVout], NORMALVOUT, tokenCreatorNormalAddr, 0LL, 0))                            // amount paid for tokens goes to normal addr (we can't check 'self' address)
+                                return eval->Invalid("vout " + std::to_string(myNormalVout) + " should go to token owner for fillbid (dust reason)");
+                        }
+                    }
                 }
                 if (eval->GetCurrentHeight() >= vin_expiryHeight)  
                     return eval->Invalid("order is expired");
@@ -544,9 +576,8 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                 if (royaltyFract < 0LL || royaltyFract >= TKLROYALTY_DIVISOR)
                     return eval->Invalid("invalid royalty value");
 
-                int32_t hasRoyaltyVout = royaltyFract > 0 ? 1 : 0;
+                int32_t r = royaltyFract > 0 ? 1 : 0;
                 bool isRoyaltyDust = true; // if no royalty then to order creator
-
                 // check if royalty or paid_value is not dust
                 if (royaltyFract > 0)  
                 {
@@ -554,20 +585,22 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                         // old bad calc: only if royalty<=50% works bcz of loss of significance bcz of division by royaltyFract first.
                         // also wrong assumption that paid_value is subtracted by the royalty (in fact it is sum of both if the royalty is dust)
                         // suppose the nValue is such that the royalty_value is assets' dust:
+                        std::cerr << __func__ << " fillask tx.vout[2].nValue=" << tx.vout[2].nValue  << " dust=" << ASSETS_NORMAL_DUST / royaltyFract * TKLROYALTY_DIVISOR - ASSETS_NORMAL_DUST << std::endl;
                         if (tx.vout[2].nValue <= ASSETS_NORMAL_DUST / royaltyFract * TKLROYALTY_DIVISOR - ASSETS_NORMAL_DUST)  {  // if value paid to seller less than when the royalty is minimum
                             isRoyaltyDust = true; // always to order creator
-                            hasRoyaltyVout = 0;  // no royalty vout
+                            r = 0;  // no royalty vout bcz of dust
                             //std::cerr << __func__ << " old calc, tx.vout[2].nValue=" << tx.vout[2].nValue << " test dust=" << ASSETS_NORMAL_DUST / royaltyFract * TKLROYALTY_DIVISOR - ASSETS_NORMAL_DUST << std::endl;
                         } 
                     }
                     else {
                         // fixed dust calc:
-                        if (AssetsFillAskIsDust(royaltyFract, vin_tokens * vin_unit_price, eval->GetCurrentHeight(), isRoyaltyDust))
-                            hasRoyaltyVout = 0;  // no dedicated royalty vout, total goes to tx.vout[2].nValue
+                        if (AssetsFillOrderIsDust(royaltyFract, vin_tokens * vin_unit_price, isRoyaltyDust))  {
+                            r = 0;  // no dedicated royalty vout bcz of dust, total goes to tx.vout[2].nValue
+                        }
                     }
                 }
 
-                CAmount paid_value = hasRoyaltyVout > 0 ? tx.vout[2].nValue + tx.vout[3].nValue : tx.vout[2].nValue; // vout2 paid value to seller, vout3 royalty to owner
+                CAmount paid_value = r > 0 ? tx.vout[2].nValue + tx.vout[3].nValue : tx.vout[2].nValue; // vout2 paid value to seller, vout3 royalty to owner
                 if (!ValidateAskRemainder(unit_price, tx.vout[0].nValue, vin_tokens, tx.vout[1].nValue, paid_value)) 
                     return eval->Invalid("mismatched vout0 remainder for fillask");
                 else if (!AssetsValidateTokenId_Activated<T>(eval, cp, tx, 0, assetid))
@@ -576,18 +609,26 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                     return eval->Invalid("vout1 should be cc for fillask");
                 else if (!AssetsValidateTokenId_Activated<T>(eval, cp, tx, 1, assetid))
                     return eval->Invalid("invalid tokenid in vout1 for fillask");
-                else if (!A::ConstrainVout(tx.vout[2], NORMALVOUT, (hasRoyaltyVout > 0 || isRoyaltyDust ? origNormalAddr : ownerNormalAddr), 0LL, 0))  // coins to order originator normal addr (if royalty dust then to token creator)
-                    return eval->Invalid("vout2 should be cc for fillask");
-                if (hasRoyaltyVout > 0)  {
+                else {
+                    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1) == false)  {
+                        if (!A::ConstrainVout(tx.vout[2], NORMALVOUT, origNormalAddr, 0LL, 0))        // coins to originator normal addr
+                            return eval->Invalid("vout2 should be cc for fillask");
+                    }
+                    else {
+                        if (!A::ConstrainVout(tx.vout[2], NORMALVOUT, (royaltyFract > 0 && r == 0 && !isRoyaltyDust ? tokenCreatorNormalAddr : origNormalAddr), 0LL, 0))  // coins to order originator normal addr (if royalty dust then to token creator)
+                            return eval->Invalid(std::string("vout2 should be normal to ") + (royaltyFract > 0 && r == 0 && !isRoyaltyDust ? std::string("token creator") : std::string("order creator")) + " for fillask");
+                    }
+                }
+                if (r > 0)  {
                     if ((tx.vout[2].nValue + tx.vout[3].nValue) / TKLROYALTY_DIVISOR * royaltyFract != tx.vout[3].nValue)  // validate royalty value
                         return eval->Invalid("vout3 invalid royalty amount for fillask");
-                    if (!A::ConstrainVout(tx.vout[3], NORMALVOUT, ownerNormalAddr, 0LL, 0))        // validate owner royalty dest
+                    if (!A::ConstrainVout(tx.vout[3], NORMALVOUT, tokenCreatorNormalAddr, 0LL, 0))        // validate owner royalty dest
                         return eval->Invalid("vout3 invalid royalty destination for fillask");
                 }
                 if (!A::ConstrainVout(tx.vout[0], CCVOUT, tokensDualEvalUnspendableCCaddr, 0LL, A::EvalCode()))   // tokens remainder on global addr
                     return eval->Invalid("invalid vout0 should pay to tokens/assets global address for fillask");
                 if (tx.vout[0].nValue > 0)  {
-                    int32_t markerVout = hasRoyaltyVout > 0 ? 4 : 3;
+                    int32_t markerVout = r > 0 ? 4 : 3;
                     // marker should exist if remainder not empty
                     if (tx.vout.size() <= markerVout || A::ConstrainVout(tx.vout[markerVout], CCVOUT, markerCCaddress, ASSETS_MARKER_AMOUNT, A::EvalCode()) == false)  // marker to originator asset cc addr
                         return eval->Invalid("invalid marker vout for original pubkey");

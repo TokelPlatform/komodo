@@ -504,7 +504,7 @@ CAmount AssetsGetTxTokenInputs(Eval *eval, struct CCcontract_info *cpTokens, con
 
 // check if either royalty or paid_value is dust in fill ask
 // nOutputValue is the total amount of paid_value + royalty
-bool AssetsFillAskIsDust(int32_t royaltyFract, CAmount nOutputValue, int32_t nHeight, bool &isRoyaltyDust)
+bool AssetsFillOrderIsDust(int32_t royaltyFract, CAmount nOutputValue, bool &isRoyaltyDust)
 {
     // nOutputValue is sum of paid_value + royalty_value
     // check whether any of them is assets' dust (calc min of royalty and paid_value, compare with assets' dust):

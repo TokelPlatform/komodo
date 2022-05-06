@@ -47,7 +47,7 @@ bool SetAskFillamounts(CAmount unit_price, CAmount fill_assetoshis, CAmount orig
 bool SetSwapFillamounts(CAmount unit_price, CAmount &paid, CAmount orig_nValue, CAmount &received, CAmount totalprice); // not implemented
 CAmount AssetsGetTxCCInputs(Eval *eval, struct CCcontract_info *cp, const char *addr, const CTransaction &tx);
 CAmount AssetsGetTxTokenInputs(Eval *eval, struct CCcontract_info *cpTokens, const CTransaction &tx);
-bool AssetsFillAskIsDust(int32_t royaltyFract, CAmount nOutputValue, int32_t nHeight, bool &isRoyaltyDust);
+bool AssetsFillOrderIsDust(int32_t royaltyFract, CAmount nOutputValue, bool &isRoyaltyDust);
 
 
 const char ccassets_log[] = "ccassets";

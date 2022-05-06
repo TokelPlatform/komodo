@@ -437,8 +437,7 @@ UniValue FinalizeCCV2Tx(bool remote, uint32_t changeFlag, struct CCcontract_info
     int64_t utxovalues[CC_MAXVINS], change, totaloutputs = 0, totalinputs = 0;
     char destaddr[KOMODO_ADDRESS_BUFSIZE], 
          myccaddr[KOMODO_ADDRESS_BUFSIZE], 
-         globaladdr[KOMODO_ADDRESS_BUFSIZE],
-         mynftaddr[KOMODO_ADDRESS_BUFSIZE] = { '\0' };
+         globaladdr[KOMODO_ADDRESS_BUFSIZE];
     uint8_t myprivkey[32] = {'\0'};
     //CC *cond = NULL, *probecond = NULL;
     UniValue sigData(UniValue::VARR), result(UniValue::VOBJ), partialConds(UniValue::VARR);
@@ -447,7 +446,12 @@ UniValue FinalizeCCV2Tx(bool remote, uint32_t changeFlag, struct CCcontract_info
     globalpk = GetUnspendable(cp, 0);
     _GetCCaddress(myccaddr, cp->evalcode, mypk, true);
     _GetCCaddress(globaladdr, cp->evalcode, globalpk, true);
-    GetTokensCCaddress(cp, mynftaddr, mypk, true); // get token or nft probe
+
+    // mynftaddr[KOMODO_ADDRESS_BUFSIZE] = { '\0' };
+    // GetTokensCCaddress(cp, mynftaddr, mypk, true); // get token or nft probe
+    std::vector<CCwrapper> tokenconds = GetTokenV2Conds(mypk);
+    std::vector<std::string> tokenaddrs = GetTokenV2IndexKeys(mypk);
+    std::vector<std::string>::iterator tokenit;
 
     n = mtx.vout.size();
     for (int i = 0; i < n; i++) {
@@ -531,9 +535,11 @@ UniValue FinalizeCCV2Tx(bool remote, uint32_t changeFlag, struct CCcontract_info
                 } else if (strcmp(destaddr, myccaddr) == 0) {
                     privkey = myprivkey;
                     cond.reset(MakeCCcond1(cp->evalcode, mypk));
-                } else if (strcmp(destaddr, mynftaddr) == 0) {
+                //} else if (strcmp(destaddr, mynftaddr) == 0) {
+                } else if ((tokenit = std::find(tokenaddrs.begin(), tokenaddrs.end(), std::string(destaddr))) != tokenaddrs.end()) {
                     privkey = myprivkey;
-                    cond.reset(MakeTokensv2CCcond1(cp->evalcode, mypk));
+                    //cond.reset(MakeTokensv2CCcond1(cp->evalcode, mypk));
+                    cond = tokenconds[ std::distance(tokenaddrs.begin(), tokenit) ];
                 } else {
                     const uint8_t nullpriv[32] = {'\0'};
                     const uint8_t dontsign[32]  = { 0xff };

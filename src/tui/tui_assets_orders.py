@@ -123,28 +123,37 @@ def run_tokens_create(rpc1, rpc2, rpc3):
         print("created token:", nftf7id1)
         # wait_until_confirmed(rpc1, nftf7id1)
 
-        print("creating tokel NFT with royalty 99...")
-        result = call_rpc(rpc1, "token"+v+"createtokel", "NFT-F7-2", str(0.00000001), "nft tokel royalty=99", '{"royalty":99}')
+        print("creating tokel NFT with royalty 999 on rpc3...")
+        result = call_rpc(rpc3, "token"+v+"createtokel", "NFT-F7-2", str(0.00000001), "nft tokel royalty=999", '{"royalty":999}')
         assert(check_tx_result(result))
-        nftf7id2 = rpc1.sendrawtransaction(result['hex'])
+        nftf7id2 = rpc3.sendrawtransaction(result['hex'])
         print("created token:", nftf7id2)
         # wait_until_confirmed(rpc1, nftf7id2)
 
-        print("creating tokel NFT with royalty 1 (to test dust)...")
-        result = call_rpc(rpc1, "token"+v+"createtokel", "NFT-F7-3", str(0.00000001), "nft tokel royalty=1", '{"royalty":1}')
+        print("creating tokel NFT with royalty 1 on rpc3 (to test dust)...")
+        result = call_rpc(rpc3, "token"+v+"createtokel", "NFT-F7-3", str(0.00000001), "nft tokel royalty=1", '{"royalty":1}')
         assert(check_tx_result(result))
-        nftf7id3 = rpc1.sendrawtransaction(result['hex'])
+        nftf7id3 = rpc3.sendrawtransaction(result['hex'])
         print("created token:", nftf7id3)
         # wait_until_confirmed(rpc1, nftf7id3)
 
         print("creating tokel NFT with royalty 500 (to test dust)...")
-        result = call_rpc(rpc1, "token"+v+"createtokel", "NFT-F7-4", str(0.00000001), "nft tokel royalty=500", '{"royalty":500}')
+        result = call_rpc(rpc3, "token"+v+"createtokel", "NFT-F7-4", str(0.00000001), "nft tokel royalty=500", '{"royalty":500}')
         assert(check_tx_result(result))
-        nftf7id4 = rpc1.sendrawtransaction(result['hex'])
+        nftf7id4 = rpc3.sendrawtransaction(result['hex'])
         print("created token:", nftf7id4)
         # wait_until_confirmed(rpc1, nftf7id4)
 
         print("tokens for tests created okay!")
+
+        # transfer tokens  from rpc3 to rpc1 (to make a different pubkey than tokencreator)
+        pubkey1 = rpc1.getinfo()['pubkey']
+        call_token_rpc_send_tx(rpc3, "token"+v+"transfer", '', nftf7id2, pubkey1, str(1))
+        call_token_rpc_send_tx(rpc3, "token"+v+"transfer", '', nftf7id3, pubkey1, str(1))
+        call_token_rpc_send_tx(rpc3, "token"+v+"transfer", '', nftf7id4, pubkey1, str(1))
+
+
+        '''
         # test tokenlist:
         check_tokenlist(rpc1, v, [tokenid1, tokenid2, nft00id1, nft00id2, nftf7id1, nftf7id2, nftf7id3, nftf7id4])
         # test tokenallbalances:
@@ -154,13 +163,14 @@ def run_tokens_create(rpc1, rpc2, rpc3):
         print("starting transfer tests for tokenid version=" + v + "...")
         run_transfers(rpc1, rpc2, v, tokenid1, tokenid2, 10)
 
-        '''
+        
         print("starting transfer tests for nft00id version=" + v + "...")
         run_transfers(rpc1, rpc2, v, nft00id1, nft00id2, 1)
         print("starting transfer tests for nftf7id version=" + v + "...")
         run_transfers(rpc1, rpc2, v, nftf7id1, nftf7id2, 1)
         print("token transfers tests finished okay!")
         time.sleep(3)
+        '''
 
         # assets cc tests:
         print("starting assets tests for tokenid1 version=" + v + "...")
@@ -175,12 +185,11 @@ def run_tokens_create(rpc1, rpc2, rpc3):
         run_assets_orders(rpc1, rpc2, v, nftf7id3, 1, 1, 0.0001, True)
         print("starting assets tests for nftf7id4 with unit price creating dust royalty and checking that round correct, version=" + v + "...")
         run_assets_orders(rpc1, rpc2, v, nftf7id4, 1, 1, 0.0000_1001, True)
-
         print("starting assets order expiration tests for tokenid1 version=" + v + "...")
         run_assets_expired_orders(rpc1, rpc2, v, tokenid1, 10, 8, 0.0001, False)
         print("assets tests finished okay!")
+        
         '''
-
         if v == "v2" :  # MofN supported for tokens cc v2 only
             print("running MofN tests for tokens v2:")
             print("starting MofN tests for tokenid1...")
@@ -190,7 +199,7 @@ def run_tokens_create(rpc1, rpc2, rpc3):
             print("starting MofN tests for nftf7id1...")
             run_MofN_transfers(rpc1, rpc2, rpc3, nftf7id1, 1)   
             print("token MofN transfer tests finished okay!")
-
+        '''
     
 
     print("all token/assets tests finished okay!")
@@ -819,7 +828,7 @@ def get_chain_rpc(config) :
 if __name__ == "__main__":
     print("starting assets orders test")
     print("plz first start a chain of three nodes and enter rpc params in the code")
-    print("ensure you have at least 10 utxos in the first node wallet for batch test txns creation")
+    print("ensure you have at least 10 utxos in the nodes' wallets for batch transaction creation")
 
     rpc1 = get_chain_rpc('/Users/dimxy/Library/Application Support/Komodo/DIMXY31/DIMXY31.conf')
     rpc2 = get_chain_rpc('/Users/dimxy/repo/tokel/src/DIMXY31/nodes/1/DIMXY31.conf')

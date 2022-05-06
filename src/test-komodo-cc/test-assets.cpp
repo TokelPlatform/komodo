@@ -76,7 +76,7 @@ public:
 static EvalMock eval;
 
 static uint256 tokenid1, tokenid2, tokenid3, tokenid4, tokenidUnused;
-static uint256 askid1, askid2, bidid1;
+static uint256 askid1, askid2, bidid1, bidid2, bidid3;
 
 //  RJXkCF7mn2DRpUZ77XBNTKCe55M2rJbTcu
 static CPubKey pk1 = CPubKey(ParseHex("035d3b0f2e98cf0fba19f80880ec7c08d770c6cf04aa5639bc57130d5ac54874db"));
@@ -415,7 +415,6 @@ protected:
                     return false;
                 }
                 //std::cerr << __func__ << " cc_verify okay for vin.hash=" << vin.prevout.hash.GetHex() << std::endl;
-                break;
             }
         }
         for(const auto &vout : tx.vout)  {
@@ -425,7 +424,7 @@ protected:
 
                 bool bCheck = checker.CheckCryptoConditionSpk(vout.scriptPubKey.GetCCV2SPK(), &error);
                 if (!bCheck) {
-                    std::cerr << __func__ << " CheckCryptoCondition error=" << ScriptErrorString(error) << " eval=" << eval.state.GetRejectReason() << std::endl;
+                    std::cerr << __func__ << " CheckCryptoConditionSpk error=" << ScriptErrorString(error) << " eval=" << eval.state.GetRejectReason() << std::endl;
                     return false;
                 }
                 //std::cerr << __func__ << " cc_verify okay for vout.nValue=" << vout.nValue << std::endl;
@@ -436,60 +435,71 @@ protected:
 
     static void CreateMockTransactions()
     {
-        CTransaction txnormal1, txnormal2, txnormal3, txnormal4, txnormalg, txask1, txask2, txbid1, txbid2, 
-                    txtokencreate1, txtokencreate2, txtokencreate3, txtokencreate4, txtokencreateUnused;
-        txnormal1 = MakeNormalTx(pk1, 20000);
+        CTransaction txnormal1 = MakeNormalTx(pk1, 20000);
         eval.AddTx(txnormal1);
 
-        txnormal2 = MakeNormalTx(pk1, 20000);
+        CTransaction txnormal2 = MakeNormalTx(pk1, 20000);
         eval.AddTx(txnormal2);
 
-        txnormal3 = MakeNormalTx(pk2, 20000);
+        CTransaction txnormal3 = MakeNormalTx(pk2, 20000);
         eval.AddTx(txnormal3);
 
-        txnormal4 = MakeNormalTx(pk2, 20000);
+        CTransaction txnormal4 = MakeNormalTx(pk2, 20000);
         eval.AddTx(txnormal4);
+
+        CTransaction txnormal5 = MakeNormalTx(pk2, 20000);
+        eval.AddTx(txnormal5);
 
         struct CCcontract_info *cpTokens, tokensC;  
         cpTokens = CCinit(&tokensC, TokensV2::EvalCode());
         struct CCcontract_info *cpAssets, C; 
         cpAssets = CCinit(&C, AssetsV2::EvalCode());   // NOTE: assets here!
     
-        txnormalg = MakeNormalTx(GetUnspendable(cpTokens, NULL), 20000);
+        CTransaction txnormalg = MakeNormalTx(GetUnspendable(cpTokens, NULL), 20000);
         eval.AddTx(txnormalg);
 
-        txtokencreate1 = MakeTokenV2CreateTx(pk1, 10);
+        CTransaction txtokencreate1 = MakeTokenV2CreateTx(pk1, 10);
         eval.AddTx(txtokencreate1);
         tokenid1 = txtokencreate1.GetHash();
 
-        txtokencreate2 = MakeTokenV2CreateTx(pk2, 10);
+        CTransaction txtokencreate2 = MakeTokenV2CreateTx(pk2, 10);
         eval.AddTx(txtokencreate2);
         tokenid2 = txtokencreate2.GetHash();
 
-        txtokencreate3 = MakeTokenV2CreateTx(pk2, 10);
+        CTransaction txtokencreate3 = MakeTokenV2CreateTx(pk2, 10);
         eval.AddTx(txtokencreate3);
         tokenid3 = txtokencreate3.GetHash();
 
-        txtokencreate4 = MakeTokenV2CreateTx(pk1, 10);
+        CTransaction txtokencreate4 = MakeTokenV2CreateTx(pk1, 10);
         eval.AddTx(txtokencreate4);
         tokenid4 = txtokencreate4.GetHash();
 
-        txtokencreateUnused = MakeTokenV2CreateTx(pk1, 10);
+        CTransaction txtokencreateUnused = MakeTokenV2CreateTx(pk1, 10);
         eval.AddTx(txtokencreateUnused);
         tokenidUnused = txtokencreateUnused.GetHash();
 
-        txask1 = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, ASSETS_NORMAL_DUST+1, 222);
+        CTransaction txask1 = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, ASSETS_NORMAL_DUST+1, 222);
         eval.AddTx(txask1);
         askid1 = txask1.GetHash();
 
-        txask2 = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, ASSETS_NORMAL_DUST+1, 222);
+        CTransaction txask2 = MakeTokenV2AskTx(cpTokens, pk1, tokenid1, 2, ASSETS_NORMAL_DUST+1, 222);
         eval.AddTx(txask2);
         askid2 = txask2.GetHash();
 
-        txbid1 = MakeTokenV2BidTx(cpAssets, pk2, tokenid2, 2, ASSETS_NORMAL_DUST+1, 222);
+        CTransaction txbid1 = MakeTokenV2BidTx(cpAssets, pk2, tokenid2, 2, ASSETS_NORMAL_DUST+1, 222);
         eval.AddTx(txbid1);
         bidid1 = txbid1.GetHash();
-        //txbid2 = MakeTokenV2BidTx(pk2, 1000+1, 2, 1000/2, 222);  // test dust
+
+        CTransaction txbid2 = MakeTokenV2BidTx(cpAssets, pk2, tokenid2, 2, ASSETS_NORMAL_DUST+2, 222, ASSETS_NORMAL_DUST+1);
+        eval.AddTx(txbid2);
+        bidid2 = txbid2.GetHash();
+
+        CTransaction txbid3 = MakeTokenV2BidTx(cpAssets, pk2, tokenid2, 2, ASSETS_NORMAL_DUST+1, 222, ASSETS_NORMAL_DUST-1);
+        eval.AddTx(txbid3);
+        bidid3 = txbid3.GetHash();
+
+
+        //CTransaction txbid2 = MakeTokenV2BidTx(pk2, 1000+1, 2, 1000/2, 222);  // test dust
     }
 
     static CTransaction MakeNormalTx(CPubKey mypk, CAmount val)
@@ -586,7 +596,7 @@ protected:
         return mtx;
     }
 
-    static CMutableTransaction MakeTokenV2BidTx(struct CCcontract_info *cpAssets, CPubKey mypk, uint256 tokenid, CAmount numtokens, CAmount unit_price, int32_t expiryHeight)
+    static CMutableTransaction MakeTokenV2BidTx(struct CCcontract_info *cpAssets, CPubKey mypk, uint256 tokenid, CAmount numtokens, CAmount unit_price, int32_t expiryHeight, CAmount extraCoins = 0LL)
     {
         CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
         //struct CCcontract_info *cpAssets, C; 
@@ -598,12 +608,12 @@ protected:
         //cpAssets = CCinit(&C, AssetsV2::EvalCode());   // NOTE: assets here!
         //CAmount unit_price = bidamount / numtokens;
 
-        if (TestAddNormalInputs(mtx, mypk, txfee) == 0LL) {
+        if (TestAddNormalInputs(mtx, mypk, txfee + bidamount + extraCoins) == 0LL) {
             std::cerr << __func__ << " cant add normal inputs" << std::endl;
             return CTransaction();
         }
         CPubKey unspendableAssetsPubkey = GetUnspendable(cpAssets, nullptr);
-        mtx.vout.push_back(TokensV2::MakeCC1vout(AssetsV2::EvalCode(), bidamount, unspendableAssetsPubkey));
+        mtx.vout.push_back(TokensV2::MakeCC1vout(AssetsV2::EvalCode(), bidamount + extraCoins, unspendableAssetsPubkey));
         mtx.vout.push_back(TokensV2::MakeCC1of2vout(AssetsV2::EvalCode(), ASSETS_MARKER_AMOUNT, mypk, unspendableAssetsPubkey));  // marker for my orders
 
         // sign vins:
@@ -652,11 +662,11 @@ protected:
                 royaltyFract = TKLROYALTY_DIVISOR-1; // royalty upper limit
         }
         //std::cerr << __func__ << " vextraData.size()=" << vextraData.size() <<  " bGetTokelDataAsInt64=" << bGetTokelDataAsInt64 << std::endl;
-        vuint8_t ownerpubkey = std::get<0>(tokenData);
+        vuint8_t vtokenCreatorPubkey = std::get<0>(tokenData);
 
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, asktx); // get orig pk, orig value
+        uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, asktx); // get orig pk, orig value
 
         if (paid_unit_price <= 0LL)
             paid_unit_price = unit_price;
@@ -664,6 +674,7 @@ protected:
         CAmount paid_nValue = paid_unit_price * fill_units;
         CAmount royaltyValue = royaltyFract > 0 ? paid_nValue / TKLROYALTY_DIVISOR * royaltyFract : 0;
 
+        bool hasDust = false;
         bool isRoyaltyDust = true;
         if (royaltyFract > 0)  {
             
@@ -672,13 +683,17 @@ protected:
                 // (note division on TKLROYALTY_DIVISOR first):
                 if(paid_nValue - royaltyValue <= ASSETS_NORMAL_DUST / (int64_t)TKLROYALTY_DIVISOR * royaltyFract  - ASSETS_NORMAL_DUST) { // if value paid to seller less than when the royalty is minimum
                     royaltyValue = 0;
+                    hasDust = true;
+                    isRoyaltyDust = true;  //old code assumes dust always royalty
                     //std::cerr << __func__ << " old calc corrected, paid_nValue - royaltyValue=" << paid_nValue - royaltyValue << " test dust=" << ASSETS_NORMAL_DUST / (int64_t)TKLROYALTY_DIVISOR * royaltyFract  - ASSETS_NORMAL_DUST << std::endl;
                 }
             }
             else {
                 // correct calculation:
-                if (AssetsFillAskIsDust(royaltyFract, paid_nValue, eval.GetCurrentHeight(), isRoyaltyDust))
+                if (AssetsFillOrderIsDust(royaltyFract, paid_nValue, isRoyaltyDust))  {
                     royaltyValue = 0; // all amount (with dust) to go to one pk (depending on which is not dust)
+                    hasDust = true;
+                }
             }
         }
 
@@ -697,13 +712,13 @@ protected:
         //vout.1 purchased tokens to self token single-eval or dual-eval token+nonfungible cc addr:
         mtx.vout.push_back(TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), fill_units, mypk));	
 
-        vuint8_t destpk = (royaltyValue > 0 || isRoyaltyDust) ? origpubkey : ownerpubkey; // if paid_value is dust send all amount to token owner				
+        vuint8_t destpk = (royaltyFract > 0 && hasDust && !isRoyaltyDust) ? vtokenCreatorPubkey : vorigpubkey; // if paid_value is dust send all amount to token owner				
         mtx.vout.push_back(CTxOut(paid_nValue - royaltyValue, CScript() << destpk << OP_CHECKSIG));		//vout.2 coins to ask originator's normal addr
         if (royaltyValue > 0)       // note it makes the vout even if roaltyValue is 0
-            mtx.vout.push_back(CTxOut(royaltyValue, CScript() << ownerpubkey << OP_CHECKSIG));	// vout.3 royalty to token owner
+            mtx.vout.push_back(CTxOut(royaltyValue, CScript() << vtokenCreatorPubkey << OP_CHECKSIG));	// vout.3 royalty to token owner
 
         if (orig_assetoshis - fill_units > 0) // we dont need the marker if order is filled
-            mtx.vout.push_back(TokensV2::MakeCC1of2vout(AssetsV2::EvalCode(), ASSETS_MARKER_AMOUNT, pubkey2pk(origpubkey), GetUnspendable(cpAssets, NULL)));    //vout.3(4 if royalty) marker to origpubkey (for my tokenorders?)
+            mtx.vout.push_back(TokensV2::MakeCC1of2vout(AssetsV2::EvalCode(), ASSETS_MARKER_AMOUNT, pubkey2pk(vorigpubkey), GetUnspendable(cpAssets, NULL)));    //vout.3(4 if royalty) marker to vorigpubkey (for my tokenorders?)
 
         uint8_t unspendableAssetsPrivkey[32];
         CPubKey unspendableAssetsPk = GetUnspendable(cpAssets, unspendableAssetsPrivkey);
@@ -712,21 +727,21 @@ protected:
         CCAddVintxCond(cpAssets, wrCond1, unspendableAssetsPrivkey);
 
         // probe to spend marker
-        CCwrapper wrCond2(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(ownerpubkey), unspendableAssetsPk)); 
+        CCwrapper wrCond2(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(vtokenCreatorPubkey), unspendableAssetsPk)); 
         CCAddVintxCond(cpAssets, wrCond2, nullptr);  // spend with mypk
 
         if (!TestFinalizeTx(mtx, cpAssets, testKeys[mypk], txfee,
             TokensV2::EncodeTokenOpRet(tokenid, { mypk }, 
-                { AssetsV2::EncodeAssetOpRet('S', unit_price, origpubkey, expiryHeight) } ))) {
+                { AssetsV2::EncodeAssetOpRet('S', unit_price, vorigpubkey, expiryHeight) } ))) {
             std::cerr << __func__ << " cant finalize tx" << std::endl;
             return CTransaction(); 
         }
-        data.pushKV("ownerpubkey", HexStr(ownerpubkey));      
-        data.pushKV("origpubkey", HexStr(origpubkey));      
+        data.pushKV("vtokenCreatorPubkey", HexStr(vtokenCreatorPubkey));      
+        data.pushKV("vorigpubkey", HexStr(vorigpubkey));      
         data.pushKV("unit_price", unit_price);
         data.pushKV("royaltyFract", royaltyFract);
         data.pushKV("royaltyValue", royaltyValue);          
-        data.pushKV("isRoyaltyDust", isRoyaltyDust);          
+        data.pushKV("isRoyaltyDust", isRoyaltyDust);
         return mtx;
     }
 
@@ -783,7 +798,6 @@ protected:
 
         CTransaction bidtx;
         uint256 hashBlock;
-        std::cerr << __func__ << " call to GetTxUnconfirmedOpt " << bidtxid.GetHex() << std::endl;
         if (!GetTxUnconfirmedOpt(&eval, bidtxid, bidtx, hashBlock)) {
             std::cerr << __func__ << " could not load bidtx" << std::endl;
             return CTransaction();
@@ -801,15 +815,15 @@ protected:
             if (royaltyFract > TKLROYALTY_DIVISOR-1)
                 royaltyFract = TKLROYALTY_DIVISOR-1; // royalty upper limit
         }
-        vuint8_t ownerpubkey = std::get<0>(tokenData);
+        vuint8_t vtokenCreatorPubkey = std::get<0>(tokenData);
 
         //std::cerr << __func__ << " bidtx=" << bidtx.GetHash().GetHex() << " " << HexStr(E_MARSHAL(ss << bidtx)) << " vouts=" << bidtx.vout.size() << std::endl;
 
         CAmount bid_amount = bidtx.vout[bidvout].nValue;
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         int32_t expiryHeight;
         CAmount unit_price;
-        if (GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, bidtx) == 0) { // get orig pk, orig value
+        if (GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, bidtx) == 0) { // get orig pk, orig value
             std::cerr << __func__ << " cant get order data" << std::endl;
             return CTransaction();
         }
@@ -840,9 +854,19 @@ protected:
         }
 
         CAmount royaltyValue = royaltyFract > 0 ? paid_amount / TKLROYALTY_DIVISOR * royaltyFract : 0;
-        if (royaltyValue <= ASSETS_NORMAL_DUST)
-            royaltyValue = 0LL;
-        std::cerr << __func__ << " royaltyFract=" << royaltyFract << " royaltyValue=" << royaltyValue << std::endl;
+        //if (royaltyValue <= ASSETS_NORMAL_DUST)
+        //    royaltyValue = 0LL;
+        bool hasDust = false;
+        bool isRoyaltyDust = true;
+        if (royaltyFract > 0)  {
+            // correct calculation:
+            if (AssetsFillOrderIsDust(royaltyFract, paid_amount, isRoyaltyDust)) {
+                royaltyValue = 0; // all amount (with dust) to go to one pk (depending on which is not dust)
+                hasDust = true;
+            }
+        }
+
+        std::cerr << __func__ << " royaltyFract=" << royaltyFract << " royaltyValue=" << royaltyValue << " paid_amount=" << paid_amount << std::endl;
         CAmount tokensChange = tokenInputs - fill_units;
 
         uint8_t unspendableAssetsPrivkey[32];
@@ -851,18 +875,18 @@ protected:
         if (orig_units - fill_units > 0 || bid_amount - paid_amount <= ASSETS_NORMAL_DUST) { // bidder has coins for more tokens or only dust is sent back to global address
             mtx.vout.push_back(TokensV2::MakeCC1vout(AssetsV2::EvalCode(), bid_amount - paid_amount, unspendableAssetsPk));     // vout0 coins remainder or the dust is sent back to cc global addr
             if (orig_units - fill_units == 0)
-                std::cerr << __func__ << " dust detected (bid_amount - paid_amount)=" << (bid_amount - paid_amount) << std::endl;
+                std::cerr << __func__ << " remainder dust detected, left on global addr (bid_amount - paid_amount)=" << (bid_amount - paid_amount) << std::endl;
         }
         else
-            mtx.vout.push_back(CTxOut(bid_amount - paid_amount, CScript() << origpubkey << OP_CHECKSIG));     // vout0 if no more tokens to buy, send the remainder to originator
-        mtx.vout.push_back(CTxOut(paid_amount - royaltyValue, CScript() << vuint8_t(mypk.begin(), mypk.end()) << OP_CHECKSIG));	// vout1 coins to mypk normal 
+            mtx.vout.push_back(CTxOut(bid_amount - paid_amount, CScript() << vorigpubkey << OP_CHECKSIG));     // vout0 if no more tokens to buy, send the remainder to originator
+        mtx.vout.push_back(CTxOut(paid_amount - royaltyValue, CScript() << (royaltyFract > 0 && hasDust && !isRoyaltyDust ? vtokenCreatorPubkey : vuint8_t(mypk.begin(), mypk.end())) << OP_CHECKSIG));	// vout1 coins to mypk normal 
         if (royaltyValue > 0)   // note it makes vout even if roaltyValue is 0
-            mtx.vout.push_back(CTxOut(royaltyValue, CScript() << ownerpubkey << OP_CHECKSIG));  // vout2 trade royalty to token owner
-        mtx.vout.push_back(TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), fill_units, pubkey2pk(origpubkey)));	  // vout2(3) single-eval tokens sent to the originator
+            mtx.vout.push_back(CTxOut(royaltyValue, CScript() << vtokenCreatorPubkey << OP_CHECKSIG));  // vout2 trade royalty to token owner
+        mtx.vout.push_back(TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), fill_units, pubkey2pk(vorigpubkey)));	  // vout2(3) single-eval tokens sent to the originator
         //specially change to make valid tx if bidder takes tokens for lower price
         //if (orig_units - fill_units > 0)  // order is not finished yet
         if (mtx.vout[0].scriptPubKey.IsPayToCryptoCondition() && mtx.vout[0].nValue / unit_price > 0)
-            mtx.vout.push_back(TokensV2::MakeCC1of2vout(AssetsV2::EvalCode(), ASSETS_MARKER_AMOUNT, pubkey2pk(origpubkey), unspendableAssetsPk));                    // vout3(4 if royalty) marker to origpubkey
+            mtx.vout.push_back(TokensV2::MakeCC1of2vout(AssetsV2::EvalCode(), ASSETS_MARKER_AMOUNT, pubkey2pk(vorigpubkey), unspendableAssetsPk));                    // vout3(4 if royalty) marker to vorigpubkey
 
         if (tokensChange != 0LL)
             mtx.vout.push_back(TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), tokensChange, mypk));  // change in single-eval tokens
@@ -876,21 +900,22 @@ protected:
         CCAddVintxCond(cpTokens, wrCond2, NULL); //NULL indicates to use myprivkey
 
         // probe to spend marker
-        CCwrapper wrCond3(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(ownerpubkey), unspendableAssetsPk)); 
+        CCwrapper wrCond3(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(vtokenCreatorPubkey), unspendableAssetsPk)); 
         CCAddVintxCond(cpAssets, wrCond3, nullptr);  // spend with mypk
 
         if (!TestFinalizeTx(mtx, cpTokens, testKeys[mypk], txfee,
-            TokensV2::EncodeTokenOpRet(tokenid, { pubkey2pk(origpubkey) },
-                { AssetsV2::EncodeAssetOpRet('B', unit_price, origpubkey, expiryHeight) }))) {
+            TokensV2::EncodeTokenOpRet(tokenid, { pubkey2pk(vorigpubkey) },
+                { AssetsV2::EncodeAssetOpRet('B', unit_price, vorigpubkey, expiryHeight) }))) {
             std::cerr << __func__ << " could not finalize tx" << std::endl;
             return CTransaction();
         }
-        data.pushKV("ownerpubkey", HexStr(ownerpubkey));      
-        data.pushKV("origpubkey", HexStr(origpubkey));
+        data.pushKV("vtokenCreatorPubkey", HexStr(vtokenCreatorPubkey));      
+        data.pushKV("vorigpubkey", HexStr(vorigpubkey));
         data.pushKV("unit_price", unit_price);
         data.pushKV("expiryHeight", expiryHeight);
         data.pushKV("royaltyFract", royaltyFract);
         data.pushKV("royaltyValue", royaltyValue);
+        data.pushKV("isRoyaltyDust", isRoyaltyDust);
         return mtx;
     }
 
@@ -914,7 +939,7 @@ protected:
             std::cerr << __func__ << " could not load token data" << std::endl;
             return CTransaction();
         }
-        vuint8_t ownerpubkey = std::get<0>(tokenData);
+        vuint8_t vtokenCreatorPubkey = std::get<0>(tokenData);
 
         if (TestAddNormalInputs(mtx, mypk, txfee) == 0LL)  {
             std::cerr << __func__ << " could not add normal inputs" << std::endl;
@@ -925,9 +950,9 @@ protected:
         uint8_t dummyEvalCode; 
         uint256 dummyAssetid, dummyAssetid2; 
         int64_t dummyPrice; 
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         int32_t expiryHeight;
-        uint8_t funcid = AssetsV2::DecodeAssetTokenOpRet(asktx.vout.back().scriptPubKey, dummyEvalCode, dummyAssetid, dummyPrice, origpubkey, expiryHeight);
+        uint8_t funcid = AssetsV2::DecodeAssetTokenOpRet(asktx.vout.back().scriptPubKey, dummyEvalCode, dummyAssetid, dummyPrice, vorigpubkey, expiryHeight);
         if (funcid == 's' && asktx.vout.size() > 1)
             mtx.vin.push_back(CTxIn(asktxid, 1, CScript()));		// spend marker if funcid='s'
         else if (funcid == 'S' && asktx.vout.size() > 3)
@@ -937,7 +962,7 @@ protected:
             return CTransaction();
         }
 
-        mtx.vout.push_back(TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), askamount, origpubkey));	// one-eval token vout
+        mtx.vout.push_back(TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), askamount, vorigpubkey));	// one-eval token vout
 
         // init assets 'unspendable' privkey and pubkey
         uint8_t unspendableAssetsPrivkey[32];
@@ -947,26 +972,26 @@ protected:
         CCAddVintxCond(cpAssets, wrCond, unspendableAssetsPrivkey);
 
         // probe to spend marker
-        //std::cerr << __func__ << " mypk=" << HexStr(mypk) << " origpubkey=" << HexStr(pubkey2pk(origpubkey)) << std::endl;
-        if (mypk == pubkey2pk(origpubkey)) {
-            CCwrapper wrCond(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(origpubkey), unspendableAssetsPk)); 
+        //std::cerr << __func__ << " mypk=" << HexStr(mypk) << " vorigpubkey=" << HexStr(pubkey2pk(vorigpubkey)) << std::endl;
+        if (mypk == pubkey2pk(vorigpubkey)) {
+            CCwrapper wrCond(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(vorigpubkey), unspendableAssetsPk)); 
             CCAddVintxCond(cpAssets, wrCond, nullptr);  // spend with mypk
             //std::cerr << __func__ << " use mypk" << std::endl;
         } else {
-            CCwrapper wrCond(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(origpubkey), unspendableAssetsPk)); 
+            CCwrapper wrCond(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(vorigpubkey), unspendableAssetsPk)); 
             CCAddVintxCond(cpAssets, wrCond, unspendableAssetsPrivkey);  // spend with shared pk       
             //std::cerr << __func__ << " use unspendableAssetsPrivkey=" << HexStr(unspendableAssetsPrivkey, unspendableAssetsPrivkey+32) << std::endl;
         }
 
         if (!TestFinalizeTx(mtx, cpAssets, testKeys[mypk], txfee,
-            TokensV2::EncodeTokenOpRet(tokenid, { origpubkey },
+            TokensV2::EncodeTokenOpRet(tokenid, { vorigpubkey },
                 { AssetsV2::EncodeAssetOpRet('x', 0, vuint8_t(), 0) } ))) {
             std::cerr << __func__ << " could not finalize tx" << std::endl;
             return CTransaction();
         }
         
-        data.pushKV("ownerpubkey", HexStr(ownerpubkey));      
-        data.pushKV("origpubkey", HexStr(origpubkey));
+        data.pushKV("vtokenCreatorPubkey", HexStr(vtokenCreatorPubkey));      
+        data.pushKV("vorigpubkey", HexStr(vorigpubkey));
         data.pushKV("askamount", askamount);
 
         return mtx;
@@ -991,7 +1016,7 @@ protected:
             std::cerr << __func__ << " could not load token data" << std::endl;
             return CTransaction();
         }
-        vuint8_t ownerpubkey = std::get<0>(tokenData);
+        vuint8_t vtokenCreatorPubkey = std::get<0>(tokenData);
 
         if (TestAddNormalInputs(mtx, mypk, txfee) == 0LL) {
             std::cerr << __func__ << " could not add normal inputs" << std::endl;
@@ -1002,9 +1027,9 @@ protected:
         uint8_t dummyEvalCode; 
         uint256 dummyAssetid, dummyAssetid2; 
         int64_t dummyPrice; 
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         int32_t expiryHeight;
-        uint8_t funcid = AssetsV2::DecodeAssetTokenOpRet(bidtx.vout.back().scriptPubKey, dummyEvalCode, dummyAssetid, dummyPrice, origpubkey, expiryHeight);
+        uint8_t funcid = AssetsV2::DecodeAssetTokenOpRet(bidtx.vout.back().scriptPubKey, dummyEvalCode, dummyAssetid, dummyPrice, vorigpubkey, expiryHeight);
         if (funcid == 'b' && bidtx.vout.size() > 1)
             mtx.vin.push_back(CTxIn(bidtxid, 1, CScript()));		// spend marker if funcid='b'
         else if (funcid == 'B' && bidtx.vout.size() > 3)
@@ -1014,11 +1039,11 @@ protected:
             return CTransaction();        }
 
         if (bidamount > ASSETS_NORMAL_DUST)  
-            mtx.vout.push_back(CTxOut(bidamount, CScript() << ParseHex(HexStr(origpubkey)) << OP_CHECKSIG));
+            mtx.vout.push_back(CTxOut(bidamount, CScript() << vorigpubkey << OP_CHECKSIG));
         else {
             // send dust back to global addr
             mtx.vout.push_back(TokensV2::MakeCC1vout(AssetsV2::EvalCode(), bidamount, GetUnspendable(cpAssets, NULL)));
-            std::cerr << __func__ << " dust detected bidamount=" << bidamount << std::endl;
+            std::cerr << __func__ << " remainder dust detected, left on global addr, bidamount=" << bidamount << std::endl;
         }
 
         // init assets 'unspendable' privkey and pubkey
@@ -1026,23 +1051,23 @@ protected:
         CPubKey unspendableAssetsPk = GetUnspendable(cpAssets, unspendableAssetsPrivkey);
 
         // probe to spend marker
-        if (mypk == pubkey2pk(origpubkey)) {
-            CCwrapper wrCond(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(origpubkey), unspendableAssetsPk)); 
+        if (mypk == pubkey2pk(vorigpubkey)) {
+            CCwrapper wrCond(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(vorigpubkey), unspendableAssetsPk)); 
             CCAddVintxCond(cpAssets, wrCond, nullptr);  // spend with mypk
         } else {
-            CCwrapper wrCond(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(origpubkey), unspendableAssetsPk)); 
+            CCwrapper wrCond(::MakeCCcond1of2(AssetsV2::EvalCode(), pubkey2pk(vorigpubkey), unspendableAssetsPk)); 
             CCAddVintxCond(cpAssets, wrCond, unspendableAssetsPrivkey);  // spend with shared pk                
         }
 
         // sign, add change, add opreturn
         if (!TestFinalizeTx(mtx, cpAssets, testKeys[mypk], txfee,
-                            TokensV2::EncodeTokenOpRet(tokenid, { origpubkey },
+                            TokensV2::EncodeTokenOpRet(tokenid, { vorigpubkey },
                                 { AssetsV2::EncodeAssetOpRet('o', 0, vuint8_t(), 0) } ))) {
             std::cerr << __func__ << " could not finalise tx" << std::endl;
             return CTransaction();
         }
-        data.pushKV("ownerpubkey", HexStr(ownerpubkey));      
-        data.pushKV("origpubkey", HexStr(origpubkey));
+        data.pushKV("vtokenCreatorPubkey", HexStr(vtokenCreatorPubkey));      
+        data.pushKV("vorigpubkey", HexStr(vorigpubkey));
         data.pushKV("bidamount", bidamount);
         return mtx;
     }
@@ -1079,11 +1104,11 @@ TEST_F(TestAssetsCC, tokenv2ask_basic)
     CMutableTransaction mtx = MakeTokenV2AskTx(cpTokens, mypk, mytokenid, numtokens, 501, 222); // price more than dust
     ASSERT_FALSE(CTransaction(mtx).IsNull());
 
-    vuint8_t origpubkey;
+    vuint8_t vorigpubkey;
     CAmount unit_price;
     uint256 assetidOpret;
     int32_t expiryHeight;
-    uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, mtx);
+    uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, mtx);
 
     // test: valid tokenv2ask
     EXPECT_TRUE(TestRunCCEval(mtx));
@@ -1094,7 +1119,7 @@ TEST_F(TestAssetsCC, tokenv2ask_basic)
         mtx1.vout.pop_back();
         ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[mypk], 10000,
             TokensV2::EncodeTokenOpRet(assetidOpret, { unspendableAssetsPubkey },     
-                { AssetsV2::EncodeAssetOpRet('s', 0, vuint8_t(origpubkey.begin(), origpubkey.end()), expiryHeight) })));
+                { AssetsV2::EncodeAssetOpRet('s', 0, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), expiryHeight) })));
         EXPECT_FALSE(TestRunCCEval(mtx1));
     }
     {
@@ -1103,7 +1128,7 @@ TEST_F(TestAssetsCC, tokenv2ask_basic)
         mtx1.vout.pop_back();
         ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[mypk], 10000,
             TokensV2::EncodeTokenOpRet(assetidOpret, { pkunused }, // bad pk instead of global    
-                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(origpubkey.begin(), origpubkey.end()), expiryHeight) })));
+                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), expiryHeight) })));
         EXPECT_TRUE(TestRunCCEval(mtx1));  // == true as pk in token opreturn not used in tokens v2
     }
     {
@@ -1121,7 +1146,7 @@ TEST_F(TestAssetsCC, tokenv2ask_basic)
         // mtx1.vout.pop_back();
         ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[mypk], 10000,
             TokensV2::EncodeTokenOpRet(assetidOpret, { unspendableAssetsPubkey },     
-                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(origpubkey.begin(), origpubkey.end()), expiryHeight) })));
+                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), expiryHeight) })));
         EXPECT_FALSE(TestRunCCEval(mtx1));
     }
     {
@@ -1131,7 +1156,7 @@ TEST_F(TestAssetsCC, tokenv2ask_basic)
         mtx1.vout.pop_back();
         ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[mypk], 10000,
             TokensV2::EncodeTokenOpRet(assetidOpret, { unspendableAssetsPubkey },   
-                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(origpubkey.begin(), origpubkey.end()), expiryHeight) })));
+                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), expiryHeight) })));
         EXPECT_FALSE(TestRunCCEval(mtx1));  // == true as pk in token opreturn not used in tokens v2
     }
     {
@@ -1143,7 +1168,7 @@ TEST_F(TestAssetsCC, tokenv2ask_basic)
         mtx1.vout.pop_back(); // remove old opreturn
         ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[mypk], 10000,
             TokensV2::EncodeTokenOpRet(assetidOpret, { unspendableAssetsPubkey },   
-                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(origpubkey.begin(), origpubkey.end()), expiryHeight) })));
+                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), expiryHeight) })));
         EXPECT_FALSE(TestRunCCEval(mtx1));  // == true as pk in token opreturn not used in tokens v2
     }
     {
@@ -1155,7 +1180,7 @@ TEST_F(TestAssetsCC, tokenv2ask_basic)
         mtx1.vout.pop_back(); // remove old opreturn
         ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[mypk], 10000,
             TokensV2::EncodeTokenOpRet(assetidOpret, { unspendableAssetsPubkey },   
-                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(origpubkey.begin(), origpubkey.end()), expiryHeight) })));
+                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), expiryHeight) })));
         EXPECT_FALSE(TestRunCCEval(mtx1));  // == true as pk in token opreturn not used in tokens v2
     }
     {
@@ -1166,7 +1191,7 @@ TEST_F(TestAssetsCC, tokenv2ask_basic)
         mtx1.vout.pop_back(); // remove old opreturn
         ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[mypk], 10000,
             TokensV2::EncodeTokenOpRet(assetidOpret, { unspendableAssetsPubkey },   
-                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(origpubkey.begin(), origpubkey.end()), expiryHeight) })));
+                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), expiryHeight) })));
         EXPECT_FALSE(TestRunCCEval(mtx1));  // == true as pk in token opreturn not used in tokens v2
     }
     {
@@ -1194,7 +1219,7 @@ TEST_F(TestAssetsCC, tokenv2ask_basic)
         mtx.vout.pop_back();
         ASSERT_TRUE(TestFinalizeTx(mtx, cpTokens, testKeys[mypk], 10000,
             TokensV2::EncodeTokenOpRet(tokenid2, { unspendableAssetsPubkey },   
-                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(origpubkey.begin(), origpubkey.end()), expiryHeight) })));
+                { AssetsV2::EncodeAssetOpRet('s', unit_price, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), expiryHeight) })));
         std::cerr << __func__ << " tokenv2ask_basic different tokenid in opdrop.." << " GetRejectReason=" << eval.state.GetRejectReason() << std::endl;
         EXPECT_TRUE(!TestRunCCEval(mtx) && eval.state.GetRejectReason().find("invalid tokenid") != std::string::npos);  // fail: can't ask for different tokenid
     }
@@ -1256,26 +1281,26 @@ TEST_F(TestAssetsCC, tokenv2fillask_basic)
     ASSERT_TRUE(GetTxUnconfirmedOpt(&eval, bidid1, txbid1, hashBlock));
     ASSERT_TRUE(GetTxUnconfirmedOpt(&eval, askid2, txask2, hashBlock));
 
-    //vuint8_t ownerpubkey = ParseHex(data["ownerpubkey"].getValStr());
+    //vuint8_t vtokenCreatorPubkey = ParseHex(data["vtokenCreatorPubkey"].getValStr());
     CMutableTransaction mtx = MakeTokenV2FillAskTx(cpAssets, pk2, tokenid1, askid1, 2, 0, data); 
 
     // test: spend invalid tokenid
     {
         CMutableTransaction mtx1(mtx);
         mtx1.vin.back() = CTxIn(askid1, ASSETS_GLOBALADDR_VOUT, CScript());  // spend order tx
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         CAmount unit_price;
         uint256 assetidOpret;
         int32_t expiryHeight;
         CTransaction txask1;
         uint256 hashBlock;
         ASSERT_TRUE(GetTxUnconfirmedOpt(&eval, askid1, txask1, hashBlock));
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txask1);
+        uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txask1);
         ASSERT_TRUE(funcid != 0);
         mtx1.vout.pop_back();
         ASSERT_TRUE(TestFinalizeTx(mtx1, cpAssets, testKeys[pk2], 10000,
             TokensV2::EncodeTokenOpRet(tokenidUnused, { pk2 }, 
-                { AssetsV2::EncodeAssetOpRet('S', unit_price, origpubkey, expiryHeight) } )));
+                { AssetsV2::EncodeAssetOpRet('S', unit_price, vorigpubkey, expiryHeight) } )));
 
         EXPECT_FALSE(TestRunCCEval(mtx1));    // must fail
     }
@@ -1284,16 +1309,16 @@ TEST_F(TestAssetsCC, tokenv2fillask_basic)
         CMutableTransaction mtx1(mtx);
 
         CAmount txfee = 10000;
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         CAmount unit_price;
         uint256 assetidOpret;
         int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txbid1); 
+        uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txbid1); 
 
         mtx1.vout.pop_back(); // remove opret to replace it in TestFinalizeTx
         ASSERT_TRUE(TestFinalizeTx(mtx1, cpAssets, testKeys[pk2], txfee,
-            TokensV2::EncodeTokenOpRet(assetidOpret, { pubkey2pk(origpubkey) },
-                { AssetsV2::EncodeAssetOpRet('B', unit_price, origpubkey, expiryHeight) }))); // 'S' -> 'B'
+            TokensV2::EncodeTokenOpRet(assetidOpret, { pubkey2pk(vorigpubkey) },
+                { AssetsV2::EncodeAssetOpRet('B', unit_price, vorigpubkey, expiryHeight) }))); // 'S' -> 'B'
 
         EXPECT_FALSE(TestRunCCEval(mtx1));  // must fail: incorrect funcid
     }
@@ -1301,46 +1326,46 @@ TEST_F(TestAssetsCC, tokenv2fillask_basic)
     {
         CMutableTransaction mtx2(mtx);
         mtx2.vin.push_back( CTxIn(askid2, ASSETS_GLOBALADDR_VOUT, CScript()) );  // spend yet another order tx
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         CAmount unit_price;
         uint256 assetidOpret;
         int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txask2); 
+        uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txask2); 
         ASSERT_TRUE(funcid != 0);
         mtx2.vout.pop_back();
         ASSERT_TRUE(TestFinalizeTx(mtx2, cpAssets, testKeys[pk2], 10000,
             TokensV2::EncodeTokenOpRet(assetidOpret, { pk2 }, 
-                { AssetsV2::EncodeAssetOpRet('S', unit_price, origpubkey, expiryHeight) } )));
+                { AssetsV2::EncodeAssetOpRet('S', unit_price, vorigpubkey, expiryHeight) } )));
 
         EXPECT_FALSE(TestRunCCEval(mtx2));    // must fail
     }
     {
         // test: change unit_price in opret
         CMutableTransaction mtx2(mtx);
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         CAmount unit_price;
         uint256 assetidOpret;
         int32_t expiryHeight;
         CTransaction txask1;
         uint256 hashBlock;
         ASSERT_TRUE(GetTxUnconfirmedOpt(&eval, askid1, txask1, hashBlock));
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txask1); // get orig pk, orig value
+        uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txask1); // get orig pk, orig value
         ASSERT_TRUE(funcid != 0);
         mtx2.vout.pop_back();
         ASSERT_TRUE(TestFinalizeTx(mtx2, cpAssets, testKeys[pk2], 10000,
             TokensV2::EncodeTokenOpRet(assetidOpret, { pk2 }, 
-                { AssetsV2::EncodeAssetOpRet('S', unit_price+1, origpubkey, expiryHeight) } )));
+                { AssetsV2::EncodeAssetOpRet('S', unit_price+1, vorigpubkey, expiryHeight) } )));
 
         EXPECT_FALSE(TestRunCCEval(mtx2));    // must fail
     }
     {
         // test: changed origpk in assets opreturn
         CMutableTransaction mtx1(mtx);
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         CAmount unit_price;
         uint256 assetidOpret;
         int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txask1); // get orig pk, orig value
+        uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txask1); // get orig pk, orig value
         mtx1.vout.pop_back();
         ASSERT_TRUE(TestFinalizeTx(mtx1, cpAssets, testKeys[pk2], 10000,
             TokensV2::EncodeTokenOpRet(tokenid1, { pk2 },     
@@ -1348,11 +1373,11 @@ TEST_F(TestAssetsCC, tokenv2fillask_basic)
         EXPECT_FALSE(TestRunCCEval(mtx1));
     }
     {
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         CAmount unit_price;
         uint256 assetidOpret;
         int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txask1);
+        uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txask1);
 
         CMutableTransaction mtx = MakeTokenV2FillAskTx(cpAssets, pk2, tokenid1, askid1, 2, unit_price-1, data);
         ASSERT_FALSE(CTransaction(mtx).IsNull());
@@ -1361,11 +1386,11 @@ TEST_F(TestAssetsCC, tokenv2fillask_basic)
         EXPECT_FALSE(TestRunCCEval(mtx)); // must fail
     }
     {
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         CAmount unit_price;
         uint256 assetidOpret;
         int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txask1);
+        uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txask1);
 
         CMutableTransaction mtx = MakeTokenV2FillAskTx(cpAssets, pk2, tokenid1, askid1, 2, unit_price+1, data);
         ASSERT_FALSE(CTransaction(mtx).IsNull());
@@ -1383,14 +1408,14 @@ TEST_F(TestAssetsCC, tokenv2fillask_basic)
             //strcpy(ASSETCHAINS_SYMBOL, "MYCHAIN_8173645");
             CCUpgrades::SelectUpgrades(ASSETCHAINS_SYMBOL);
 
-            vuint8_t origpubkey;
+            vuint8_t vorigpubkey;
             CAmount unit_price;
             uint256 assetidOpret;
             int32_t expiryHeight;
             CTransaction txask1;
             uint256 hashBlock;
             ASSERT_TRUE(GetTxUnconfirmedOpt(&eval, askid1, txask1, hashBlock));
-            uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txask1);
+            uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txask1);
 
             CMutableTransaction mtx2 = MakeTokenV2FillAskTx(cpAssets, pk2, assetidOpret, askid1, fillUnits, unit_price, data); 
 
@@ -1421,7 +1446,7 @@ TEST_F(TestAssetsCC, tokenv2fillask_basic)
 
             ASSERT_TRUE(TestFinalizeTx(mtx2, cpAssets, testKeys[pk2], 10000,
                 TokensV2::EncodeTokenOpRet(assetidOpret, { pk2 },     
-                    { AssetsV2::EncodeAssetOpRet('S', unit_price, vuint8_t(origpubkey.begin(), origpubkey.end()), expiryHeight) })));  
+                    { AssetsV2::EncodeAssetOpRet('S', unit_price, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), expiryHeight) })));  
 
             std::cerr << __func__ << " test: tokenfillask with different tokenid in opdrop, fillUnuts=" << fillUnits << std::endl;
             EXPECT_FALSE(assetidOpret == tokenid3);
@@ -1521,156 +1546,169 @@ TEST_F(TestAssetsCC, tokenv2fillbid_basic)
     UniValue data(UniValue::VOBJ);
     struct CCcontract_info *cpTokens, C; 
     cpTokens = CCinit(&C, TokensV2::EvalCode());  
-    eval.SetCurrentHeight(111);  //set height 
 
-    CTransaction txbid1;
-    uint256 hashBlock;
-    ASSERT_TRUE(GetTxUnconfirmedOpt(&eval, bidid1, txbid1, hashBlock));
-
-    CMutableTransaction mtx = MakeTokenV2FillBidTx(cpTokens, pk2, tokenid2, bidid1, 2, 0, data);  
-    ASSERT_FALSE(CTransaction(mtx).IsNull());
-
-    // test: valid tokenv2fillbid
-    EXPECT_TRUE(TestRunCCEval(mtx));
+    std::vector<uint256> bidids = { bidid1, bidid2, bidid3 }; // bids with no extra coins and with some
+    int i = 0;
+    for (auto const & bidid : bidids)
     {
-        // test: fill with another tokenid 
-        CMutableTransaction mtx1(mtx);
+        eval.SetCurrentHeight(111); 
 
-        CAmount txfee = 10000;
-        vuint8_t ownerpubkey = ParseHex(data["ownerpubkey"].getValStr());
-        vuint8_t origpubkey = ParseHex(data["origpubkey"].getValStr());
-        CAmount unit_price = data["unit_price"].get_int64();
-        int32_t expiryHeight = data["expiryHeight"].get_int();
+        CTransaction txbid;
+        uint256 hashBlock;
+        ASSERT_TRUE(GetTxUnconfirmedOpt(&eval, bidid, txbid, hashBlock));
 
-        mtx1.vin[1] = CTxIn(tokenid3, 1, CScript());  // spend other tokenid3
-        mtx1.vout.pop_back(); // remove opret to replace it in TestFinalizeTx
-        ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[pk2], txfee,
-            TokensV2::EncodeTokenOpRet(tokenid3, { pubkey2pk(origpubkey) },
-                { AssetsV2::EncodeAssetOpRet('B', unit_price, origpubkey, expiryHeight) }))); 
-
-        EXPECT_FALSE(TestRunCCEval(mtx1));  // must fail: can't fill with another tokenid3
-    }
-    {
-        // test: use opposite funcid 
-        CMutableTransaction mtx1(mtx);
-
-        CAmount txfee = 10000;
-        vuint8_t origpubkey;
-        CAmount unit_price;
-        uint256 assetidOpret;
-        int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txbid1); // get orig pk, orig value
-
-        mtx1.vout.pop_back(); // remove opret to replace it in TestFinalizeTx
-        ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[pk2], txfee,
-            TokensV2::EncodeTokenOpRet(assetidOpret, { pubkey2pk(origpubkey) },
-                { AssetsV2::EncodeAssetOpRet('S', unit_price, origpubkey, expiryHeight) }))); // 'B' -> 'S'
-
-        EXPECT_FALSE(TestRunCCEval(mtx1));  // must fail: incorrect funcid
-    }
-    {
-        // test: changed origpk in opreturn
-        CMutableTransaction mtx1(mtx);
-        vuint8_t origpubkey;
-        CAmount unit_price;
-        uint256 assetidOpret;
-        int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txbid1); // get orig pk, orig value
-        mtx1.vout.pop_back();
-        ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[pk2], 10000,
-            TokensV2::EncodeTokenOpRet(assetidOpret, { pk2 },     
-                { AssetsV2::EncodeAssetOpRet('B', unit_price, vuint8_t(pkunused.begin(), pkunused.end()), expiryHeight) })));  // not matched origpk (should be pk1)
-        EXPECT_FALSE(TestRunCCEval(mtx1)); // must fail changed origpk
-    }
-    {
-        vuint8_t origpubkey;
-        CAmount unit_price;
-        uint256 assetidOpret;
-        int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txbid1); // get orig pk, orig value
-
-        CMutableTransaction mtx = MakeTokenV2FillBidTx(cpTokens, pk2, tokenid2, bidid1, 1, unit_price, data);  
-        mtx.vout[1].nValue += 1;  // imitate lower price
+        CMutableTransaction mtx = MakeTokenV2FillBidTx(cpTokens, pk2, tokenid2, bidid, 2, 0, data);  
         ASSERT_FALSE(CTransaction(mtx).IsNull());
 
-        // test: invalid tokenv2fillbid with lower price but invalid cc inputs != cc outputs
-        EXPECT_FALSE(TestRunCCEval(mtx)); // must fail
-    } 
-    {
-        vuint8_t origpubkey;
-        CAmount unit_price;
-        uint256 assetidOpret;
-        int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txbid1); // get orig pk, orig value
-
-        CMutableTransaction mtx = MakeTokenV2FillBidTx(cpTokens, pk2, tokenid2, bidid1, 1, unit_price-1, data);  
-        ASSERT_FALSE(CTransaction(mtx).IsNull());
-
-        // test: valid tokenv2fillbid with lower sell price than requested 
-        EXPECT_TRUE(TestRunCCEval(mtx)); 
-    }
-    {
-        vuint8_t origpubkey;
-        CAmount unit_price;
-        uint256 assetidOpret;
-        int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txbid1); // get orig pk, orig value
-
-        CMutableTransaction mtx = MakeTokenV2FillBidTx(cpTokens, pk2, tokenid2, txbid1.GetHash(), 1, unit_price+1, data);  
-        ASSERT_FALSE(CTransaction(mtx).IsNull());
-
-        // test: invalid tokenv2fillbid with bigger sell price than requested 
-        EXPECT_FALSE(TestRunCCEval(mtx)); // must fail
-    }
-    {
-        // test: fillbid with different tokenid in opdrop
-        //eval.SetCurrentHeight(111);
-        eval.SetCurrentHeight(CCUpgrades::CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
-        strcpy(ASSETCHAINS_SYMBOL, "TOKEL");
-        CCUpgrades::SelectUpgrades(ASSETCHAINS_SYMBOL);
-
-        vuint8_t origpubkey;
-        CAmount unit_price;
-        uint256 assetidOpret;
-        int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, txbid1); // get orig pk, orig value
-
-        CMutableTransaction mtx2 = MakeTokenV2FillBidTx(cpTokens, pk2, assetidOpret, txbid1.GetHash(), 2, 0, data);  
-
-        CAmount txfee = 10000;
-        mtx2.vin[1] = CTxIn(tokenid3, 1, CScript());  // spend other tokenid3
+        // test: valid tokenv2fillbid
+        EXPECT_TRUE(TestRunCCEval(mtx));
         {
-            CScript opret = TokensV2::EncodeTokenOpRet(tokenid3, { origpubkey }, {}); //send to tokenid3 when assetidOpret = tokenid2
-            vscript_t vopret;
-            GetOpReturnData(opret, vopret);
-            std::vector<vscript_t> vData { vopret };
-            mtx2.vout[2] = TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), mtx2.vout[2].nValue, origpubkey, &vData);  
+            // test: fill with another tokenid 
+            CMutableTransaction mtx1(mtx);
+
+            CAmount txfee = 10000;
+            vuint8_t vtokenCreatorPubkey = ParseHex(data["vtokenCreatorPubkey"].getValStr());
+            vuint8_t vorigpubkey = ParseHex(data["vorigpubkey"].getValStr());
+            CAmount unit_price = data["unit_price"].get_int64();
+            int32_t expiryHeight = data["expiryHeight"].get_int();
+
+            mtx1.vin[1] = CTxIn(tokenid3, 1, CScript());  // spend other tokenid3
+            mtx1.vout.pop_back(); // remove opret to replace it in TestFinalizeTx
+            ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[pk2], txfee,
+                TokensV2::EncodeTokenOpRet(tokenid3, { pubkey2pk(vorigpubkey) },
+                    { AssetsV2::EncodeAssetOpRet('B', unit_price, vorigpubkey, expiryHeight) }))); 
+
+            EXPECT_FALSE(TestRunCCEval(mtx1));  // must fail: can't fill with another tokenid3
         }
         {
-            CScript opretCh = TokensV2::EncodeTokenOpRet(tokenid3, { pk2 }, {}); //send to tokenid3 when assetidOpret = tokenid2
-            vscript_t vopretCh;
-            GetOpReturnData(opretCh, vopretCh);
-            std::vector<vscript_t> vDataCh { vopretCh };
-            mtx2.vout[3] = TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), mtx2.vout[3].nValue, pk2, &vDataCh);  // change
+            // test: use opposite funcid 
+            CMutableTransaction mtx1(mtx);
+
+            CAmount txfee = 10000;
+            vuint8_t vorigpubkey;
+            CAmount unit_price;
+            uint256 assetidOpret;
+            int32_t expiryHeight;
+            uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txbid); // get orig pk, orig value
+
+            mtx1.vout.pop_back(); // remove opret to replace it in TestFinalizeTx
+            ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[pk2], txfee,
+                TokensV2::EncodeTokenOpRet(assetidOpret, { pubkey2pk(vorigpubkey) },
+                    { AssetsV2::EncodeAssetOpRet('S', unit_price, vorigpubkey, expiryHeight) }))); // 'B' -> 'S'
+
+            EXPECT_FALSE(TestRunCCEval(mtx1));  // must fail: incorrect funcid
         }
+        {
+            // test: changed origpk in opreturn
+            CMutableTransaction mtx1(mtx);
+            vuint8_t vorigpubkey;
+            CAmount unit_price;
+            uint256 assetidOpret;
+            int32_t expiryHeight;
+            uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txbid); // get orig pk, orig value
+            mtx1.vout.pop_back();
+            ASSERT_TRUE(TestFinalizeTx(mtx1, cpTokens, testKeys[pk2], 10000,
+                TokensV2::EncodeTokenOpRet(assetidOpret, { pk2 },     
+                    { AssetsV2::EncodeAssetOpRet('B', unit_price, vuint8_t(pkunused.begin(), pkunused.end()), expiryHeight) })));  // not matched origpk (should be pk1)
+            EXPECT_FALSE(TestRunCCEval(mtx1)); // must fail changed origpk
+        }
+        {
+            vuint8_t vorigpubkey;
+            CAmount unit_price;
+            uint256 assetidOpret;
+            int32_t expiryHeight;
+            uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txbid); // get orig pk, orig value
 
-        mtx2.vout.pop_back(); // remove opret to replace it in TestFinalizeTx
-        ASSERT_TRUE(TestFinalizeTx(mtx2, cpTokens, testKeys[pk2], txfee,
-            TokensV2::EncodeTokenOpRet(assetidOpret, { pubkey2pk(origpubkey) },
-                { AssetsV2::EncodeAssetOpRet('B', unit_price, origpubkey, expiryHeight) }))); 
+            CMutableTransaction mtx = MakeTokenV2FillBidTx(cpTokens, pk2, tokenid2, bidid, 1, unit_price, data);  
+            mtx.vout[1].nValue += 1;  // imitate lower price
+            ASSERT_FALSE(CTransaction(mtx).IsNull());
 
-        std::cerr << __func__ << " test: tokenfillbid with different tokenid in opdrop" << std::endl;
-        EXPECT_FALSE(assetidOpret == tokenid3);
-        //EXPECT_TRUE(TestRunCCEval(mtx2));
-        EXPECT_TRUE(!TestRunCCEval(mtx2) && eval.state.GetRejectReason().find("invalid tokenid") != std::string::npos);  // must fail: can't fill with another tokenid3 in opdrop
+            // test: invalid tokenv2fillbid with lower price but invalid cc inputs != cc outputs
+            EXPECT_FALSE(TestRunCCEval(mtx)); // must fail
+        } 
+        {
+            vuint8_t vorigpubkey;
+            CAmount unit_price;
+            uint256 assetidOpret;
+            int32_t expiryHeight;
+            uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txbid); // get orig pk, orig value
+
+            CMutableTransaction mtx = MakeTokenV2FillBidTx(cpTokens, pk2, tokenid2, bidid, 1, unit_price-1, data);  
+            ASSERT_FALSE(CTransaction(mtx).IsNull());
+
+            // test: valid tokenv2fillbid with lower sell price than requested 
+            EXPECT_TRUE(TestRunCCEval(mtx)); 
+        }
+        {
+            vuint8_t vorigpubkey;
+            CAmount unit_price;
+            uint256 assetidOpret;
+            int32_t expiryHeight;
+            uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txbid); // get orig pk, orig value
+
+            CMutableTransaction mtx = MakeTokenV2FillBidTx(cpTokens, pk2, tokenid2, txbid.GetHash(), 1, unit_price+1, data);  
+            ASSERT_FALSE(CTransaction(mtx).IsNull());
+
+            // test: invalid tokenv2fillbid with bigger sell price than requested 
+            EXPECT_FALSE(TestRunCCEval(mtx)); // must fail
+        }
+        {
+            // test: fillbid with different tokenid in opdrop
+            //eval.SetCurrentHeight(111);
+            eval.SetCurrentHeight(CCUpgrades::CCASSETS_OPDROP_FIX_TOKEL_HEIGHT);
+            strcpy(ASSETCHAINS_SYMBOL, "TOKEL");
+            CCUpgrades::SelectUpgrades(ASSETCHAINS_SYMBOL);
+
+            vuint8_t vorigpubkey;
+            CAmount unit_price;
+            uint256 assetidOpret;
+            int32_t expiryHeight;
+            uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, txbid); // get orig pk, orig value
+
+            CMutableTransaction mtx2 = MakeTokenV2FillBidTx(cpTokens, pk2, assetidOpret, txbid.GetHash(), 2, 0, data);  
+
+            CAmount txfee = 10000;
+            mtx2.vin[1] = CTxIn(tokenid3, 1, CScript());  // spend other tokenid3
+            {
+                CScript opret = TokensV2::EncodeTokenOpRet(tokenid3, { vorigpubkey }, {}); //send to tokenid3 when assetidOpret = tokenid2
+                vscript_t vopret;
+                GetOpReturnData(opret, vopret);
+                std::vector<vscript_t> vData { vopret };
+                mtx2.vout[2] = TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), mtx2.vout[2].nValue, vorigpubkey, &vData);  
+            }
+            {
+                CScript opretCh = TokensV2::EncodeTokenOpRet(tokenid3, { pk2 }, {}); //send to tokenid3 when assetidOpret = tokenid2
+                vscript_t vopretCh;
+                GetOpReturnData(opretCh, vopretCh);
+                std::vector<vscript_t> vDataCh { vopretCh };
+                mtx2.vout[3] = TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), mtx2.vout[3].nValue, pk2, &vDataCh);  // change
+            }
+
+            mtx2.vout.pop_back(); // remove opret to replace it in TestFinalizeTx
+            ASSERT_TRUE(TestFinalizeTx(mtx2, cpTokens, testKeys[pk2], txfee,
+                TokensV2::EncodeTokenOpRet(assetidOpret, { pubkey2pk(vorigpubkey) },
+                    { AssetsV2::EncodeAssetOpRet('B', unit_price, vorigpubkey, expiryHeight) }))); 
+
+            std::cerr << __func__ << " test: tokenfillbid with different tokenid in opdrop, tokenid3=" << tokenid3.GetHex() << " assetidOpret=" << assetidOpret.GetHex() << std::endl;
+            std::cerr << __func__ << " i=" << i++ << std::endl; 
+            EXPECT_FALSE(assetidOpret == tokenid3);
+            //EXPECT_TRUE(TestRunCCEval(mtx2));
+            bool b = false;
+            EXPECT_TRUE(!(b=TestRunCCEval(mtx2)) && eval.state.GetRejectReason().find("invalid tokenid") != std::string::npos);  // must fail: can't fill with another tokenid3 in opdrop
+            std::cerr <<__func__ << " b=" << b << " eval.state.GetRejectReason()=" << eval.state.GetRejectReason() << " mtx2=" << HexStr(E_MARSHAL(ss << mtx2)) << std::endl;
+        }
     }
 }
 
-TEST_F(TestAssetsCC, tokenv2fillbid_royalty)
+// NOTE: no test for tokenv2fillbid_royalty_non_fixed
+
+TEST_F(TestAssetsCC, tokenv2fillbid_royalty_fixed)
 {
     eval.SetCurrentHeight(111);  //set height 
 
-    for(int r = 100; r < 1000; r += 100)
+    std::vector<int> royalties = { 1, 200, 500, 800, 999 };
+    //for(int r = 100; r < 1000; r += 100)
+    for (auto const r : royalties)
     {
         UniValue data(UniValue::VOBJ); // some data returned from MakeTokenV2FillBidTx
         UniValue tokeldata(UniValue::VOBJ);
@@ -1684,12 +1722,33 @@ TEST_F(TestAssetsCC, tokenv2fillbid_royalty)
         uint256 mytokenid = mytxtokencreate.GetHash();
         eval.AddTx(mytxtokencreate);
 
-        CTransaction mytxbid = MakeTokenV2BidTx(cpAssets, pk2, mytokenid, 1, ASSETS_NORMAL_DUST*2+1, 222);
+        CAmount price = 4999;
+        CAmount asktokens = 1;
+        CAmount filltokens = 1;
+
+        //CTransaction mytxbid = MakeTokenV2BidTx(cpAssets, pk2, mytokenid, 1, ASSETS_NORMAL_DUST*2+1, 222);
+        CTransaction mytxbid = MakeTokenV2BidTx(cpAssets, pk2, mytokenid, asktokens, price, 222);
         eval.AddTx(mytxbid);
 
-        CMutableTransaction mytxfillbid = MakeTokenV2FillBidTx(cpTokens, pk1, mytokenid, mytxbid.GetHash(), 1, 0, data);  
+        CMutableTransaction mytxfillbid = MakeTokenV2FillBidTx(cpTokens, pk1, mytokenid, mytxbid.GetHash(), filltokens, 0, data);  
         ASSERT_FALSE(CTransaction(mytxfillbid).IsNull());
-        ASSERT_TRUE(data["royaltyFract"].get_int64() == r);
+        ASSERT_TRUE(data["royaltyFract"].get_int64() == r);    
+        if (filltokens * price / (int64_t)TKLROYALTY_DIVISOR * std::min(r, (int32_t)TKLROYALTY_DIVISOR - r) <= ASSETS_NORMAL_DUST) {
+            // have dust
+            EXPECT_TRUE(data["royaltyValue"].get_int64() == 0); 
+            EXPECT_TRUE(TestRunCCEval(mytxfillbid));
+            EXPECT_TRUE(mytxfillbid.vout[1].nValue  == filltokens * price);
+            EXPECT_TRUE(r < TKLROYALTY_DIVISOR/2 ? data["isRoyaltyDust"].get_bool() : !data["isRoyaltyDust"].get_bool()); // is dust royalty or paid_value
+            // if royalty is not dust then the value should go either to tokenowner
+            if (r >= TKLROYALTY_DIVISOR/2)  
+                EXPECT_TRUE(IsEqualDestinations(mytxfillbid.vout[1].scriptPubKey, CScript() << vuint8_t(pk1.begin(), pk1.end()) << OP_CHECKSIG));
+        }
+        else  {
+            // no dust
+            EXPECT_TRUE(data["royaltyValue"].get_int64() > 0); 
+            EXPECT_TRUE(TestRunCCEval(mytxfillbid));
+            EXPECT_TRUE(mytxfillbid.vout[1].nValue + mytxfillbid.vout[2].nValue == filltokens * price);
+        }
 
         // test: valid tokenv2fillbid
         EXPECT_TRUE(TestRunCCEval(mytxfillbid));
@@ -1748,7 +1807,7 @@ TEST_F(TestAssetsCC, tokenv2fillask_royalty_fixed)
     ASSERT_TRUE(CCUpgrades::IsUpgradeActive(eval.GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1)); // fix in action
     for(int r = 100; r < 1000; r += 100)
     {
-        UniValue data(UniValue::VOBJ); // some data returned from MakeTokenV2FillBidTx
+        UniValue data(UniValue::VOBJ); // some data returned from MakeTokenV2FilAskTx
         UniValue tokeldata(UniValue::VOBJ);
         struct CCcontract_info *cpTokens, tokensC; 
         cpTokens = CCinit(&tokensC, TokensV2::EvalCode());  
@@ -1770,7 +1829,7 @@ TEST_F(TestAssetsCC, tokenv2fillask_royalty_fixed)
         ASSERT_FALSE(CTransaction(mytxfillask).IsNull());
         ASSERT_TRUE(data["royaltyFract"].get_int64() == r);
 
-        if (r == 100 || r == 900) EXPECT_TRUE(data["royaltyValue"].get_int64() == 0); // for these royalties t should be dust
+        //if (r == 100 || r == 900) EXPECT_TRUE(data["royaltyValue"].get_int64() == 0); // for these royalties t should be dust
 
         // test: valid tokenv2fillask
         //std::cerr << __func__ << " good rule, is dust calc=" << (filltokens * price / (int64_t)TKLROYALTY_DIVISOR * std::min(r, (int32_t)TKLROYALTY_DIVISOR - r)) << " royaltyValue=" << data["royaltyValue"].get_int64() << std::endl;
@@ -1810,15 +1869,15 @@ TEST_F(TestAssetsCC, tokenv2cancelask)
         UniValue data(UniValue::VOBJ);
         uint256 asktxid = vintx.GetHash();
 
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         CAmount unit_price;
         uint256 assetidOpret;
         int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, vintx);
+        uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, vintx);
 
         struct CCcontract_info *cpAssets, C; 
         cpAssets = CCinit(&C, AssetsV2::EvalCode());
-        CMutableTransaction mtx = MakeTokenV2CancelAskTx(cpAssets, pubkey2pk(origpubkey), tokenid1, asktxid, data);
+        CMutableTransaction mtx = MakeTokenV2CancelAskTx(cpAssets, pubkey2pk(vorigpubkey), tokenid1, asktxid, data);
         ASSERT_FALSE(CTransaction(mtx).IsNull());
 
         CAmount askamount = data["askamount"].get_int64();
@@ -1829,7 +1888,7 @@ TEST_F(TestAssetsCC, tokenv2cancelask)
             // test: invalid pk2 in assets opreturn
             CMutableTransaction mtx2(mtx);
             mtx2.vout.pop_back();
-            mtx2.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenid1, { origpubkey },
+            mtx2.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenid1, { vorigpubkey },
                                     { AssetsV2::EncodeAssetOpRet('x', 0, vuint8_t(pk2.begin(), pk2.end()), 0) } )));
             EXPECT_TRUE(TestRunCCEval(mtx2)); // pk in opret not checked
         }
@@ -1838,7 +1897,7 @@ TEST_F(TestAssetsCC, tokenv2cancelask)
             CMutableTransaction mtx3(mtx);
             mtx3.vout.pop_back();
             mtx3.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenid1, { pkunused },
-                                    { AssetsV2::EncodeAssetOpRet('x', 0, vuint8_t(origpubkey.begin(), origpubkey.end()), 0) } )));
+                                    { AssetsV2::EncodeAssetOpRet('x', 0, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), 0) } )));
             EXPECT_TRUE(TestRunCCEval(mtx3)); // pk in opret is not checked for token v2, it is only for a hint
         }
         {
@@ -1851,16 +1910,16 @@ TEST_F(TestAssetsCC, tokenv2cancelask)
             // test: invalid tokenid in token opret
             CMutableTransaction mtx5(mtx);
             mtx5.vout.pop_back();
-            mtx5.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenidUnused, { origpubkey },
-                                    { AssetsV2::EncodeAssetOpRet('x', 0, vuint8_t(origpubkey.begin(), origpubkey.end()), 0) } )));
+            mtx5.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenidUnused, { vorigpubkey },
+                                    { AssetsV2::EncodeAssetOpRet('x', 0, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), 0) } )));
             EXPECT_FALSE(TestRunCCEval(mtx5)); // must fail: cant send to another tokenid
         }
         {
             // test: invalid funcid in token opret
             CMutableTransaction mtx6(mtx);
             mtx6.vout.pop_back();
-            mtx6.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenid1, { origpubkey },
-                                    { AssetsV2::EncodeAssetOpRet('o', 0, vuint8_t(origpubkey.begin(), origpubkey.end()), 0) } )));
+            mtx6.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenid1, { vorigpubkey },
+                                    { AssetsV2::EncodeAssetOpRet('o', 0, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), 0) } )));
             EXPECT_FALSE(TestRunCCEval(mtx6)); // must fail
         }
         {  
@@ -1871,33 +1930,33 @@ TEST_F(TestAssetsCC, tokenv2cancelask)
             CMutableTransaction mtx7(mtx);
 
             CAmount txfee = 10000;
-            CAmount otherAmount = TestAddTokenInputs(mtx7, origpubkey, tokenid4, mtx7.vout[0].nValue);  //add different tokenid
+            CAmount otherAmount = TestAddTokenInputs(mtx7, vorigpubkey, tokenid4, mtx7.vout[0].nValue);  //add different tokenid
             ASSERT_TRUE(otherAmount > 0);
 
             mtx7.vout.insert(mtx7.vout.begin() + mtx7.vout.size() - 1,  mtx7.vout[0]);  // copy vout with tokens with assetidOpret back 
             
-            CScript opret = TokensV2::EncodeTokenOpRet(tokenid4, { origpubkey }, {}); // put tokenid4 in opdrop while assetid differs
+            CScript opret = TokensV2::EncodeTokenOpRet(tokenid4, { vorigpubkey }, {}); // put tokenid4 in opdrop while assetid differs
             vscript_t vopret;
             GetOpReturnData(opret, vopret);
             std::vector<vscript_t> vData { vopret };
-            mtx7.vout[0] = TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), mtx7.vout[0].nValue, origpubkey, &vData);  // replace remainder with tokenid4
+            mtx7.vout[0] = TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), mtx7.vout[0].nValue, vorigpubkey, &vData);  // replace remainder with tokenid4
 
             std::cerr << __func__ << " tokenid4=" << tokenid4.GetHex() << " assetidOpret=" << assetidOpret.GetHex() << " otherAmount=" << otherAmount << " mtx7.vin.size()=" << mtx7.vin.size() << std::endl;
             if (otherAmount > mtx7.vout[0].nValue)  {  // if tokenid4 change exists
-                CScript opret = TokensV2::EncodeTokenOpRet(tokenid4, { origpubkey }, {}); 
+                CScript opret = TokensV2::EncodeTokenOpRet(tokenid4, { vorigpubkey }, {}); 
                 vscript_t vopret;
                 GetOpReturnData(opret, vopret);
                 std::vector<vscript_t> vData { vopret };
                 mtx7.vout.insert(mtx7.vout.begin() + mtx7.vout.size() - 1,  
-                    TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), otherAmount - mtx7.vout[0].nValue, origpubkey, &vData)); // add tokenid4 change
+                    TokensV2::MakeTokensCC1vout(TokensV2::EvalCode(), otherAmount - mtx7.vout[0].nValue, vorigpubkey, &vData)); // add tokenid4 change
             }
 
-            CCwrapper wrCond1(TokensV2::MakeTokensCCcond1(TokensV2::EvalCode(), origpubkey));  // spend my tokenid4
+            CCwrapper wrCond1(TokensV2::MakeTokensCCcond1(TokensV2::EvalCode(), vorigpubkey));  // spend my tokenid4
             CCAddVintxCond(cpAssets, wrCond1, NULL); // NULL indicates to use myprivkey
 
             mtx7.vout.pop_back(); //remove opret
-            ASSERT_TRUE(TestFinalizeTx(mtx7, cpAssets, testKeys[origpubkey], 10000,
-                TokensV2::EncodeTokenOpRet(assetidOpret, { origpubkey },     
+            ASSERT_TRUE(TestFinalizeTx(mtx7, cpAssets, testKeys[vorigpubkey], 10000,
+                TokensV2::EncodeTokenOpRet(assetidOpret, { vorigpubkey },     
                    { AssetsV2::EncodeAssetOpRet('x', 0, vuint8_t(), 0) })));  
 
             std::cerr << __func__ << " test: tokencancelask with different tokenid in opdrop" << std::endl;
@@ -2028,15 +2087,15 @@ TEST_F(TestAssetsCC, tokenv2cancelbid)
         UniValue data(UniValue::VOBJ);
         uint256 bidtxid = vintx.GetHash();
 
-        vuint8_t origpubkey;
+        vuint8_t vorigpubkey;
         CAmount unit_price;
         uint256 assetidOpret;
         int32_t expiryHeight;
-        uint8_t funcid = GetOrderParams<AssetsV2>(origpubkey, unit_price, assetidOpret, expiryHeight, vintx);
+        uint8_t funcid = GetOrderParams<AssetsV2>(vorigpubkey, unit_price, assetidOpret, expiryHeight, vintx);
 
         struct CCcontract_info *cpAssets, C; 
         cpAssets = CCinit(&C, AssetsV2::EvalCode());
-        CMutableTransaction mtx = MakeTokenV2CancelBidTx(cpAssets, pubkey2pk(origpubkey), tokenid2, bidtxid, data);
+        CMutableTransaction mtx = MakeTokenV2CancelBidTx(cpAssets, pubkey2pk(vorigpubkey), tokenid2, bidtxid, data);
         ASSERT_FALSE(CTransaction(mtx).IsNull());
 
         CAmount bidamount = data["bidamount"].get_int64();
@@ -2047,7 +2106,7 @@ TEST_F(TestAssetsCC, tokenv2cancelbid)
             // test: invalid pk in assets opreturn
             CMutableTransaction mtx2(mtx);
             mtx2.vout.pop_back();
-            mtx2.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenid2, { origpubkey },
+            mtx2.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenid2, { vorigpubkey },
                                     { AssetsV2::EncodeAssetOpRet('o', 0, vuint8_t(pk1.begin(), pk1.end()), 0) } )));
             EXPECT_TRUE(TestRunCCEval(mtx2)); // pk in opret is not checked
         }
@@ -2056,7 +2115,7 @@ TEST_F(TestAssetsCC, tokenv2cancelbid)
             CMutableTransaction mtx3(mtx);
             mtx3.vout.pop_back();
             mtx3.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenid2, { pkunused },
-                                    { AssetsV2::EncodeAssetOpRet('o', 0, vuint8_t(origpubkey.begin(), origpubkey.end()), 0) } )));
+                                    { AssetsV2::EncodeAssetOpRet('o', 0, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), 0) } )));
             EXPECT_TRUE(TestRunCCEval(mtx3)); // pk in opret is not checked
         }
         {
@@ -2069,8 +2128,8 @@ TEST_F(TestAssetsCC, tokenv2cancelbid)
             // test: invalid tokenid in token opret
             CMutableTransaction mtx5(mtx);
             mtx5.vout.pop_back();
-            mtx5.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenidUnused, { origpubkey },
-                                    { AssetsV2::EncodeAssetOpRet('o', 0, vuint8_t(origpubkey.begin(), origpubkey.end()), 0) } )));
+            mtx5.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenidUnused, { vorigpubkey },
+                                    { AssetsV2::EncodeAssetOpRet('o', 0, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), 0) } )));
             EXPECT_FALSE(TestRunCCEval(mtx5)); 
         }
         {
@@ -2078,13 +2137,13 @@ TEST_F(TestAssetsCC, tokenv2cancelbid)
             CMutableTransaction mtx6(mtx);
             mtx6.vout.pop_back();
             mtx6.vout.push_back(CTxOut(0, TokensV2::EncodeTokenOpRet(tokenid2, { pk2 },
-                                    { AssetsV2::EncodeAssetOpRet('x', 0, vuint8_t(origpubkey.begin(), origpubkey.end()), 0) } )));
+                                    { AssetsV2::EncodeAssetOpRet('x', 0, vuint8_t(vorigpubkey.begin(), vorigpubkey.end()), 0) } )));
             EXPECT_FALSE(TestRunCCEval(mtx6)); 
         }
         {
             // test: send dust to normals - bad test params here
             //CMutableTransaction mtx7(mtx);
-            //mtx7.vout[0] = CTxOut(bidamount, CScript() << ParseHex(HexStr(ownerpubkey)) << OP_CHECKSIG);
+            //mtx7.vout[0] = CTxOut(bidamount, CScript() << ParseHex(HexStr(vtokenCreatorPubkey)) << OP_CHECKSIG);
             //EXPECT_FALSE(TestRunCCEval(mtx7)); // must fail: dust should stay on cc global output
         }
     }

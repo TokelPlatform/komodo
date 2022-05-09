@@ -654,7 +654,8 @@ public:
                 std::placeholders::_1, std::placeholders::_2
             ));
 
-            m_endpoint.set_tls_init_handler(bind(&CWebSocketServer::on_tls_init, this, MOZILLA_MODERN, _1)); // add tls init
+            // enable for tls:
+            // m_endpoint.set_tls_init_handler(bind(&CWebSocketServer::on_tls_init, this, MOZILLA_MODERN, _1)); // add tls init
             m_endpoint.set_open_handler(bind(&CWebSocketServer::on_open, this, _1));
             m_endpoint.set_close_handler(bind(&CWebSocketServer::on_close, this, _1));
             m_endpoint.set_validate_handler(bind(&CWebSocketServer::on_validate, this, _1));
@@ -771,6 +772,7 @@ private:
         return "test";
     }
 
+    /* enable for tls 
     context_ptr on_tls_init(tls_mode mode, websocketpp::connection_hdl hdl) {
         namespace asio = websocketpp::lib::asio;
 
@@ -822,7 +824,7 @@ private:
             std::cout << "Exception: " << e.what() << std::endl;
         }
         return ctx;
-    }
+    } */
 
     void on_fail(websocketpp::connection_hdl hdl) {
         wsserver::connection_ptr con = m_endpoint.get_con_from_hdl(hdl);
@@ -911,6 +913,8 @@ public:
 
         // Register our handlers
         m_endpoint.set_socket_init_handler(bind(&CWebSocketOutbound::on_socket_init,this,::_1));
+
+        // enable for tls version:
         //m_endpoint.set_http_init_handler(bind(&CWebSocketOutbound::on_socket_init,this,::_1));
         //m_endpoint.set_tls_init_handler(bind(&CWebSocketOutbound::on_socket_init,this,::_1));
 
@@ -937,7 +941,7 @@ public:
         if (!uri.empty())
             m_uri = uri;
         else
-            m_uri = "ws://" + addrConnect.ToStringIPPort();
+            m_uri = "ws://" + addrConnect.ToStringIPPort();  // use wss for tls version
 
         wsclient::connection_ptr con = m_endpoint.get_connection(m_uri, ec);
 

@@ -29,8 +29,8 @@ static const int WSADDR_VERSION = 170008;
 #define WEBSOCKETS_TIMEOUT_INTERVAL 120
 
 
-// struct wsserver_mt_config : public websocketpp::config::asio {  // no tls
-struct wsserver_mt_config : public websocketpp::config::asio_tls { // tls
+struct wsserver_mt_config : public websocketpp::config::asio {  // no tls
+// struct wsserver_mt_config : public websocketpp::config::asio_tls { // tls
 
     // pull default settings from our core config
     static bool const enable_multithreading = true;
@@ -46,22 +46,22 @@ struct wsserver_mt_config : public websocketpp::config::asio_tls { // tls
     //     <permessage_deflate_config> permessage_deflate_type;
 };
 
-// typedef websocketpp::server<wsserver_mt_config> wsserver;   // no tls
-typedef websocketpp::server<websocketpp::config::asio_tls> wsserver; // tls
+typedef websocketpp::server<wsserver_mt_config> wsserver;   // no tls
+// typedef websocketpp::server<websocketpp::config::asio_tls> wsserver; // tls
 
 // transport::asio::tls_socket::endpoint
 
 typedef websocketpp::client<websocketpp::config::asio_client> wsclient;
 
 
-typedef websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> context_ptr;
+// typedef websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> context_ptr;
 
 // See https://wiki.mozilla.org/Security/Server_Side_TLS for more details about
 // the TLS modes. The code below demonstrates how to implement both the modern
-enum tls_mode {
+/* enum tls_mode {
     MOZILLA_INTERMEDIATE = 1,
     MOZILLA_MODERN = 2
-};
+}; */
 
 bool StartWebSockets(boost::thread_group& threadGroup);
 void SetWebSocketsWarmupFinished();

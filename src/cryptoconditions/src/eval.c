@@ -28,15 +28,17 @@ struct CCType CC_EvalType;
 
 static void evalFingerprint(const CC *cond, uint8_t *out) {
 
-   if (!cond->includeParamInFP)
-        sha256(cond->code, cond->codeLength, out);
-   else {
-       uint8_t *msg = malloc(cond->codeLength + cond->paramLength);
-       memcpy(msg, cond->code, cond->codeLength);
-       memcpy(msg + cond->codeLength, cond->param, cond->paramLength);
-       sha256(msg, cond->codeLength+cond->paramLength, out);
-       free(msg);
-   }
+    /* TODO: enable for generic evals
+    if (!cond->includeParamInFP) */
+    sha256(cond->code, cond->codeLength, out);
+    /* TODO: enable for generic evals
+    else {
+        uint8_t *msg = malloc(cond->codeLength + cond->paramLength);
+        memcpy(msg, cond->code, cond->codeLength);
+        memcpy(msg + cond->codeLength, cond->param, cond->paramLength);
+        sha256(msg, cond->codeLength+cond->paramLength, out);
+        free(msg);
+    } */
 }
 
 
@@ -52,6 +54,8 @@ static CC *evalFromJSON(const cJSON *params, char *err) {
     if (!jsonGetBase64(params, "code", err, &code, &codeLength) && !jsonGetHex(params, "codehex", err, &code, &codeLength) ) {
         return NULL;
     }
+
+    /* TODO: enable for generic evals
     unsigned char *param = NULL;
     size_t param_len = 0;
 
@@ -62,20 +66,21 @@ static CC *evalFromJSON(const cJSON *params, char *err) {
 
     int includeParamInFP = 0;
     cJSON *objfp = cJSON_GetObjectItem(params, "includeParamInFP");
-    if (objfp) includeParamInFP = !!objfp->valueint;
+    if (objfp) includeParamInFP = !!objfp->valueint; */
 
     CC *cond = cc_new(CC_Eval);
     cond->code = code;
     cond->codeLength = codeLength;
+    /* TODO: enable for generic evals
     cond->param = param;
-    cond->paramLength = param_len;
+    cond->paramLength = param_len; */
     /* debug:
     if (cond->param)  {
         unsigned char *hex = cc_hex_encode(cond->param, cond->paramLength);
         printf("%s cond->param=%s\n", __func__, hex);
         free(hex);
     }*/
-    cond->includeParamInFP = includeParamInFP;
+    // cond->includeParamInFP = includeParamInFP;
 
     int dontFulfill = 0;
     cJSON *objdf = cJSON_GetObjectItem(params, "dontFulfill");
@@ -96,6 +101,7 @@ static void evalToJSON(const CC *cond, cJSON *code) {
     cJSON_AddItemToObject(code, "codehex", cJSON_CreateString(codehex));
     free(codehex);
 
+    /* TODO: enable for generic evals
     if (cond->param) {
         unsigned char *hex = cc_hex_encode(cond->param, cond->paramLength);
         cJSON_AddItemToObject(code, "param", cJSON_CreateString(hex));
@@ -103,7 +109,7 @@ static void evalToJSON(const CC *cond, cJSON *code) {
     }
     if (cond->includeParamInFP) {
         cJSON_AddItemToObject(code, "includeParamInFP", cJSON_CreateNumber(cond->includeParamInFP));
-    }
+    } */
 }
 
 
@@ -117,6 +123,7 @@ static CC *evalFromFulfillment(const Fulfillment_t *ffill) {
     cond->code = calloc(1,octets.size);
     memcpy(cond->code, octets.buf, octets.size);
 
+    /* TODO: enable for generic evals
     cond->param = NULL;
     cond->paramLength = 0;
 
@@ -128,7 +135,7 @@ static CC *evalFromFulfillment(const Fulfillment_t *ffill) {
         //free(hex);
         cond->param = calloc(1, paramOctets.size);
         memcpy(cond->param, paramOctets.buf, paramOctets.size);
-    }
+    }   */
 
     return cond;
 }
@@ -139,13 +146,14 @@ static Fulfillment_t *evalToFulfillment(const CC *cond) {
     ffill->present = Fulfillment_PR_evalSha256;
     EvalFulfillment_t *eval = &ffill->choice.evalSha256;
     OCTET_STRING_fromBuf(&eval->code, cond->code, cond->codeLength);
+    /* TODO: enable for generic evals
     if (cond->param) {
         eval->param = (OCTET_STRING_t*)calloc(1, sizeof(OCTET_STRING_t));
         OCTET_STRING_fromBuf(eval->param, cond->param, cond->paramLength);
         //unsigned char *hex = cc_hex_encode(cond->param, cond->paramLength);
         //printf("%s cond->param=%s\n", __func__, hex);
         //free(hex);
-    }
+    } */
     return ffill;
 }
 
@@ -157,8 +165,9 @@ int evalIsFulfilled(const CC *cond) {
 
 static void evalFree(CC *cond) {
     free(cond->code);
+    /* TODO enable for generic evals
     if (cond->param)
-        free(cond->param);
+        free(cond->param); */
 }
 
 
@@ -205,12 +214,13 @@ static CC* evalCopy(const CC* cond)
     memcpy(condCopy->code, cond->code, cond->codeLength);
     condCopy->codeLength=cond->codeLength;
 
+    /* TODO enable for generic evals
     condCopy->param = NULL;
     condCopy->paramLength=cond->paramLength;
     if (cond->paramLength)  {
         condCopy->param = calloc(cond->paramLength, sizeof(uint8_t));
         memcpy(condCopy->param, cond->param, cond->paramLength);
-    }
+    }*/
     condCopy->dontFulfill = cond->dontFulfill;
     return (condCopy);
 }

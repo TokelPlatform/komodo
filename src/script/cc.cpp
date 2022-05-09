@@ -34,12 +34,16 @@ bool IsSupportedCryptoCondition(const CC *cond, CC_SUBVER ccSubVersion)
     int CCSigningNodesVersioned = CCSigningNodes;
     if (ccSubVersion >= CC_MIXED_MODE_SECHASH_SUBVER_1) CCSigningNodesVersioned = 0; // allow non signed conds
 
-    // TODO: allow non signed conds for ver >= 1 in June 2022?
-    // if (ccSubVersion < CC_MIXED_MODE_SECHASH_SUBVER_1 && !(mask & CCSigningNodes)) return false;   
+    // TODO: allow non signed conds generic evals
+    // if (ccSubVersion < CC_GENERIC_EVALS_SUBVER && !(mask & CCSigningNodes)) return false;   
 
-    // TODO: check for eval params enabled if ccSubVersion >= CC_MIXED_MODE_SECHASH_SUBVER_1
-    // ...
-
+    // TODO: when generic evals are enabled 
+    // check that eval params enabled if ccSubVersion >= CC_GENERIC_EVALS_SUBVER:
+    /*VerifyEval eval = [](CC* cond, void* evalcode) {
+        return cond->param ? 0 : 1;
+    };
+    bool hasEvalParam = !cc_verifyEval(cond, eval, nullptr);
+    if (hasEvalParam && ccSubVersion < CC_GENERIC_EVALS_SUBVER) return false; */
     return true;
 }
 
@@ -47,10 +51,12 @@ bool IsSupportedCryptoCondition(const CC *cond, CC_SUBVER ccSubVersion)
 bool IsSignedCryptoCondition(const CC *cond, CC_SUBVER ccSubVersion)
 {
     if (!cc_isFulfilled(cond)) return false;
-    //if (ccSubVersion >= CC_MIXED_MODE_SECHASH_SUBVER_1) return true; // TODO enable unsigned conds in this June 2022 or not?
+
+    // TODO enable not signed conds when generic evals enabled
+    // if (ccSubVersion >= CC_GENERIC_EVALS_SUBVER) return true; 
 
     int CCSigningNodesVersioned = CCSigningNodes;
-    if (ccSubVersion >= CC_MIXED_MODE_SECHASH_SUBVER_1) CCSigningNodesVersioned |= (1 << CC_Secp256k1hash); // allow new secp hash cond
+    if (ccSubVersion >= CC_MIXED_MODE_SECHASH_SUBVER_1) CCSigningNodesVersioned |= (1 << CC_Secp256k1hash); // allow new secp256k1hash cond
     if (1 << cc_typeId(cond) & CCSigningNodesVersioned) return true;
     if (cc_typeId(cond) == CC_Threshold)
         for (int i=0; i<cond->size; i++)

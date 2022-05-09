@@ -98,6 +98,8 @@ CAddress GetLocalWebSocketAddress(const CNetAddr *paddrPeer)
         ret = CAddress(addr);
     }
     ret.nServices = NODE_NETWORK | NODE_WEBSOCKETS;
+    if (GetBoolArg("-nspv_msg", DEFAULT_NSPV_PROCESSING))
+        ret.nServices |= NODE_NSPV;
     ret.nTime = GetTime();
     return ret;
 }

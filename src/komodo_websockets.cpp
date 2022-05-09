@@ -482,17 +482,12 @@ bool ProcessWsMessage(CNode* pfrom, std::string strCommand, CDataStream& vRecv, 
 
     else if ((strCommand == "getwsaddr") && (pfrom->fInbound))  // allow to getwsaddr for clients and newly connected nodes to initialize their addrman
     {
-        // comment to allow multiply requests for nspv clients:
-        // -----
-        // Only send one getaddr response per connection to reduce resource waste
-        //  and discourage addr stamping of INV announcements.
-        //if (pfrom->fSentAddr) {  
-        //    LogPrint("net", "Ignoring repeated \"getwsaddr\". peer=%d\n", pfrom->id);
-        //    return true;
-        //}
-        //pfrom->fSentAddr = true;
-        //pfrom->sentAddrTime = GetTime();
-        // ------
+        // rate limit for wsaddr requests
+        if (GetTime() - pfrom->nLastWsAddrTime < 60) {  
+            LogPrint("net", "Ignoring repeated \"getwsaddr\". peer=%d\n", pfrom->id);
+            return true;
+        }
+        pfrom->nLastWsAddrTime = GetTime();
         
         pfrom->vAddrToSend.clear();
         std::vector<CAddress> vWsaddr = wsaddrman.GetAddrAtMost();

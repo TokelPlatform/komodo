@@ -345,6 +345,7 @@ public:
     CRollingBloomFilter addrKnown;
     bool fGetAddr;
     std::set<uint256> setKnown;
+    int64_t nLastWsAddrTime;
 
     // inventory based relay
     mruset<CInv> setInventoryKnown;

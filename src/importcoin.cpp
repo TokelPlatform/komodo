@@ -347,7 +347,7 @@ CAmount GetCoinImportValue(const CTransaction &tx, int32_t nHeight)
 
                 std::vector<CPubKey> vDeadPubkeys;
                 vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY)));
-                if (CCUpgrades::IsUpgradeActive(nHeight, CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))
+                if (CCUpgrades::IsUpgradeActive(nHeight, CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_MIXEDMODE_SUBVER_1))
                     vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED)));  // activate new burn pubkey
 
                 // calc outputs for burn tx

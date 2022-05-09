@@ -46,9 +46,9 @@ namespace CCUpgrades  {
     };
 
     enum UPGRADE_ID  {
-        CCASSETS_INITIAL_CHAIN       = 0x00,
-        CCASSETS_OPDROP_VALIDATE_FIX = 0x01,
-        CCMIXEDMODE_SUBVER_1         = 0x02,  // new cc secp256k1 cond type and eval param, assets cc royalty fixes
+        CCUPGID_ASSETS_INITIAL_CHAIN       = 0x00,
+        CCUPGID_ASSETS_OPDROP_VALIDATE_FIX = 0x01,
+        CCUPGID_MIXEDMODE_SUBVER_1         = 0x02,  // new cc secp256k1 cond type and eval param, assets cc royalty fixes
     };
 
     struct UpgradeInfo {

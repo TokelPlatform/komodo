@@ -550,7 +550,7 @@ bool CheckMigration(Eval *eval, const CTransaction &importTx, const CTransaction
 
         std::vector<CPubKey> vDeadPubkeys;
         vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY)));
-        if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))
+        if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_MIXEDMODE_SUBVER_1))
             vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED)));  // activate new burn pubkey
 
         // calc outputs for burn tx

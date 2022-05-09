@@ -451,7 +451,7 @@ std::string TokenTransferDest(CAmount txfee, uint256 tokenid, uint8_t M, const s
     //vuint8_t vextraData = std::get<4>(tokenData);
 
     std::vector<std::string> tokenindexkeys = V::GetTokenIndexKeys(mypk);
-    UniValue sigData = TokenTransferExtDest<V>(CPubKey(), txfee, tokenid, tokenindexkeys, {}, M, destinations, total, true);
+    UniValue sigData = TokenTransferExtDest<V>(CPubKey(), txfee, tokenid, tokenindexkeys, {}, M, destinations, total, false);
     return ResultGetTx(sigData);
 }
 
@@ -939,7 +939,7 @@ static CAmount HasBurnedTokensvouts(Eval *eval, const CTransaction& tx, uint256 
     }
 
     vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY)));
-    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))
+    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_MIXEDMODE_SUBVER_1))
         vDeadPubkeys.push_back(pubkey2pk(ParseHex(CC_BURNPUBKEY_FIXED)));  // activate new burn pubkey
 
 

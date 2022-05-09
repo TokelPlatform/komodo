@@ -26,7 +26,7 @@ namespace CCUpgrades {
         void init(const std::string &chainName, int nProtocolVersion)
         {
             assert(mChainUpgrades.find(chainName) == mChainUpgrades.end()); // mChainUpgrades[chainName] must be empty
-            mChainUpgrades[chainName].setActivationHeight(CCASSETS_INITIAL_CHAIN, 0, UPGRADE_ACTIVE, nProtocolVersion);
+            mChainUpgrades[chainName].setActivationHeight(CCUPGID_ASSETS_INITIAL_CHAIN, 0, UPGRADE_ACTIVE, nProtocolVersion);
         }
 
         void addUpgradeActive(const std::string &chainName, UPGRADE_ID upgradeId, int32_t nHeight, int nProtocolVersion)
@@ -45,17 +45,17 @@ namespace CCUpgrades {
             init("TKLTEST2", CCOLDDEFAULT_PROTOCOL_VERSION);
             init("DIMXY32", CCOLDDEFAULT_PROTOCOL_VERSION);
 
-            // CCASSETS_OPDROP_VALIDATE_FIX activation
-            addUpgradeActive("TOKEL", CCASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TOKEL_HEIGHT, CCOLDDEFAULT_PROTOCOL_VERSION);
-            addUpgradeActive("TKLTEST", CCASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TKLTEST_HEIGHT, CCOLDDEFAULT_PROTOCOL_VERSION);
+            // CCUPGID_ASSETS_OPDROP_VALIDATE_FIX activation
+            addUpgradeActive("TOKEL", CCUPGID_ASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TOKEL_HEIGHT, CCOLDDEFAULT_PROTOCOL_VERSION);
+            addUpgradeActive("TKLTEST", CCUPGID_ASSETS_OPDROP_VALIDATE_FIX, CCASSETS_OPDROP_FIX_TKLTEST_HEIGHT, CCOLDDEFAULT_PROTOCOL_VERSION);
 
-            // CCMIXEDMODE_SUBVER_1 activation
-            addUpgradeActive("TOKEL", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TOKEL_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
-            addUpgradeActive("TKLTEST", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TKLTEST_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
-            addUpgradeActive("DIMXY24", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_DIMXY24_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
-            addUpgradeActive("DIMXY28", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_DIMXY28_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
-            addUpgradeActive("DIMXY32", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_DIMXY32_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
-            addUpgradeActive("TKLTEST2", CCMIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TKLTEST2_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
+            // CCUPGID_MIXEDMODE_SUBVER_1 activation
+            addUpgradeActive("TOKEL", CCUPGID_MIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TOKEL_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
+            addUpgradeActive("TKLTEST", CCUPGID_MIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TKLTEST_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
+            addUpgradeActive("DIMXY24", CCUPGID_MIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_DIMXY24_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
+            addUpgradeActive("DIMXY28", CCUPGID_MIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_DIMXY28_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
+            addUpgradeActive("DIMXY32", CCUPGID_MIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_DIMXY32_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
+            addUpgradeActive("TKLTEST2", CCUPGID_MIXEDMODE_SUBVER_1, CCMIXEDMODE_SUBVER_1_TKLTEST2_HEIGHT, CCMIXEDMODE_SUBVER_1_PROTOCOL_VERSION);
 
             // add more chains here...
             // ...
@@ -101,7 +101,7 @@ namespace CCUpgrades {
         if (chainUpgrades.mUpgrades.size() == 0)
             return chainUpgrades.defaultUpgrade;
         else {
-            UpgradeInfo current = chainUpgrades.mUpgrades.find(CCASSETS_INITIAL_CHAIN)->second; // set as initial chain info
+            UpgradeInfo current = chainUpgrades.mUpgrades.find(CCUPGID_ASSETS_INITIAL_CHAIN)->second; // set as initial chain info
             for (auto const & it : chainUpgrades.mUpgrades) {
                 if (nHeight >= it.second.nActivationHeight)
                     current = it.second;  // find latest active upgrade 

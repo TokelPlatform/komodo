@@ -304,7 +304,7 @@ bool AssetsValidateTokenId(Eval *eval, struct CCcontract_info *cp, const CTransa
 template<class T>
 bool AssetsValidateTokenId_Activated(Eval *eval, struct CCcontract_info *cpTokens, const CTransaction &tx, int32_t v, uint256 assetid)
 {
-    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCASSETS_OPDROP_VALIDATE_FIX))  
+    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_ASSETS_OPDROP_VALIDATE_FIX))  
         return AssetsValidateTokenId<T>(eval, cpTokens, tx, v, assetid);
     else 
         return true;

@@ -364,7 +364,7 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                 // check if royalty or paid_value is not dust
                 if (royaltyFract > 0)  
                 {
-                    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1) == false)  {
+                    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_MIXEDMODE_SUBVER_1) == false)  {
                         // old bad calc: 
                         // incorrect use of vin_coins to calculate royalty (this is true only for nfts)
                         CAmount royaltyValue = royaltyFract > 0 ? vin_coins / TKLROYALTY_DIVISOR * royaltyFract : 0;
@@ -448,7 +448,7 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                         return eval->Invalid("vout2 invalid royalty detination for fillask");
                 }
                 else {
-                    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1))  
+                    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_MIXEDMODE_SUBVER_1))  
                     {
                         // validate that the paid value to go to the token owner if amount to seller is dust
                         if (royaltyFract > 0 && r == 0 && !isRoyaltyDust)   {   // there is royalty dust and royalty is not dust --> send to token owner
@@ -581,7 +581,7 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                 // check if royalty or paid_value is not dust
                 if (royaltyFract > 0)  
                 {
-                    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1) == false)  {
+                    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_MIXEDMODE_SUBVER_1) == false)  {
                         // old bad calc: only if royalty<=50% works bcz of loss of significance bcz of division by royaltyFract first.
                         // also wrong assumption that paid_value is subtracted by the royalty (in fact it is sum of both if the royalty is dust)
                         // suppose the nValue is such that the royalty_value is assets' dust:
@@ -610,7 +610,7 @@ static bool AssetsValidateInternal(struct CCcontract_info *cp, Eval* eval,const 
                 else if (!AssetsValidateTokenId_Activated<T>(eval, cp, tx, 1, assetid))
                     return eval->Invalid("invalid tokenid in vout1 for fillask");
                 else {
-                    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1) == false)  {
+                    if (CCUpgrades::IsUpgradeActive(eval->GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_MIXEDMODE_SUBVER_1) == false)  {
                         if (!A::ConstrainVout(tx.vout[2], NORMALVOUT, origNormalAddr, 0LL, 0))        // coins to originator normal addr
                             return eval->Invalid("vout2 should be cc for fillask");
                     }

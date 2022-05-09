@@ -678,7 +678,7 @@ protected:
         bool isRoyaltyDust = true;
         if (royaltyFract > 0)  {
             
-            if (CCUpgrades::IsUpgradeActive(eval.GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1) == false)  {
+            if (CCUpgrades::IsUpgradeActive(eval.GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_MIXEDMODE_SUBVER_1) == false)  {
                 // corrected old calculation to allow tx creation and pass to fillask validation code 
                 // (note division on TKLROYALTY_DIVISOR first):
                 if(paid_nValue - royaltyValue <= ASSETS_NORMAL_DUST / (int64_t)TKLROYALTY_DIVISOR * royaltyFract  - ASSETS_NORMAL_DUST) { // if value paid to seller less than when the royalty is minimum
@@ -1762,7 +1762,7 @@ TEST_F(TestAssetsCC, tokenv2fillask_royalty_non_fixed)
     strcpy(ASSETCHAINS_SYMBOL, "TOKEL");
     CCUpgrades::SelectUpgrades(ASSETCHAINS_SYMBOL);
 
-    ASSERT_FALSE(CCUpgrades::IsUpgradeActive(eval.GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1));
+    ASSERT_FALSE(CCUpgrades::IsUpgradeActive(eval.GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_MIXEDMODE_SUBVER_1));
     for(int r = 100; r < 1000; r += 100)
     {
         UniValue data(UniValue::VOBJ); // some data returned from MakeTokenV2FillBidTx
@@ -1804,7 +1804,7 @@ TEST_F(TestAssetsCC, tokenv2fillask_royalty_fixed)
     strcpy(ASSETCHAINS_SYMBOL, "TOKEL");
     CCUpgrades::SelectUpgrades(ASSETCHAINS_SYMBOL);
 
-    ASSERT_TRUE(CCUpgrades::IsUpgradeActive(eval.GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCMIXEDMODE_SUBVER_1)); // fix in action
+    ASSERT_TRUE(CCUpgrades::IsUpgradeActive(eval.GetCurrentHeight(), CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_MIXEDMODE_SUBVER_1)); // fix in action
     for(int r = 100; r < 1000; r += 100)
     {
         UniValue data(UniValue::VOBJ); // some data returned from MakeTokenV2FilAskTx

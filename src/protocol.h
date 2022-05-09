@@ -103,7 +103,8 @@ enum : uint64_t {
     // do not actually support. Other service bits should be allocated via the
     // BIP process.
 
-    NODE_WEBSOCKETS = (1UL << 31)  // nspv listening on websockets
+    NODE_WEBSOCKETS = (1UL << 31),  // nspv listening on websockets
+    NODE_WEBSOCKETS_TLS = (1UL << 32)  // websockets tls
 };
 
 /** A CService with information about it as peer */

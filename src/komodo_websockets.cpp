@@ -94,6 +94,7 @@ CAddress GetLocalWebSocketAddress(const CNetAddr *paddrPeer)
     CService addr;
     if (GetLocal(addr, paddrPeer))
     {
+        addr.SetPort(GetWebSocketListenPort());
         ret = CAddress(addr);
     }
     ret.nServices = NODE_NETWORK | NODE_WEBSOCKETS;

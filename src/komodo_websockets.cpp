@@ -482,9 +482,9 @@ bool ProcessWsMessage(CNode* pfrom, std::string strCommand, CDataStream& vRecv, 
 
     else if ((strCommand == "getwsaddr") && (pfrom->fInbound))  // allow to getwsaddr for clients and newly connected nodes to initialize their addrman
     {
-        // rate limit for wsaddr requests
+        // rate limit for getwsaddr requests
         if (GetTime() - pfrom->nLastWsAddrTime < 60) {  
-            LogPrint("net", "Ignoring repeated \"getwsaddr\". peer=%d\n", pfrom->id);
+            LogPrint("websockets", "Ignoring repeated \"getwsaddr\". peer=%d\n", pfrom->id);
             return true;
         }
         pfrom->nLastWsAddrTime = GetTime();
@@ -730,7 +730,7 @@ public:
                 try {
                     pnode->m_spWsEndpoint->close(pnode->m_hdl, websocketpp::close::status::going_away);
                 } catch (websocketpp::exception const & e) { // might be already close from remote site or on a error
-                    std::cout << __func__ << " websocketpp::exception: " << e.what() << " (could be okay)" << std::endl;
+                    LogPrint("websockets", "%s stop listener websocketpp::exception: %s (this could be okay)\n", __func__, e.what());
                 }
             }
         }
@@ -869,7 +869,7 @@ private:
             return;
         }
 
-        LogPrint("websockets", "closing inbound connection from ws peer %d\n", pNode->GetId());
+        LogPrint("websockets", "closed inbound connection from ws peer %d\n", pNode->GetId());
 
         pNode->fDisconnect = true;
         RemoveWsNode(pNode);  
@@ -877,7 +877,7 @@ private:
 
     virtual void close(websocketpp::connection_hdl hdl, websocketpp::close::status::value status)
     {
-        LogPrint("websockets", "closing connection %s\n", GetClientAddressFromHdl(hdl).ToStringIPPort().c_str());
+        LogPrint("websockets", "closing connection %s called for wsserver\n", GetClientAddressFromHdl(hdl).ToStringIPPort().c_str());
         m_endpoint.close(hdl, status, "");
     }
 
@@ -1007,7 +1007,7 @@ public:
     void on_close(websocketpp::connection_hdl) {
         if ((bool)m_pNode) { 
             LOCK(cs_vWsNodes);
-            LogPrint("websockets", "closing outbound connection to ws peer %d\n", m_pNode->GetId());
+            LogPrint("websockets", "closed outbound connection to ws peer %d\n", m_pNode->GetId());
 
             m_pNode->fDisconnect = true;
             RemoveWsNode(m_pNode);  
@@ -1017,6 +1017,7 @@ public:
     virtual void close(websocketpp::connection_hdl hdl, websocketpp::close::status::value status)
     {    
         if (m_endpoint.get_con_from_hdl(hdl) != nullptr)    {
+            LogPrint("websockets", "closing outbound connection to %s called\n", m_pNode->addr.ToString());
             m_endpoint.close(hdl, status, std::string());
         }
     }
@@ -1162,7 +1163,7 @@ void ThreadWebSocketMessageHandler()
                             try {
                                pnode->m_spWsEndpoint->close(pnode->m_hdl, (pnode->closeErrorOnSend ? pnode->closeErrorOnSend : pnode->closeErrorOnReceive));              
                             } catch (websocketpp::exception const & e) { // might be already closed from remote site or on a error
-                                std::cout << __func__ << " close websocketpp::exception: " << e.what() << " (could be okay)" << std::endl;
+                                LogPrint("websockets", "%s close websocketpp::exception: %s (could be normal)\n", __func__, e.what());
                             }
                         }
                     }
@@ -1241,17 +1242,17 @@ static void ThreadWebSocketWaitForDisconnectedThreads()
                 }
                 else if (nTime - pnode->nLastSend > WEBSOCKETS_TIMEOUT_INTERVAL)
                 {
-                    LogPrintf("websocket sending timeout: %is\n", nTime - pnode->nLastSend);
+                    LogPrintf("websocket sending timeout: %is peer=%d\n", nTime - pnode->nLastSend, pnode->GetId());
                     pnode->fDisconnect = true;
                 }
                 else if (nTime - pnode->nLastRecv > (pnode->nVersion > BIP0031_VERSION ? WEBSOCKETS_TIMEOUT_INTERVAL : 90*60))
                 {
-                    LogPrintf("websocket receive timeout: %is\n", nTime - pnode->nLastRecv);
+                    LogPrintf("websocket receive timeout: %is peer=%d\n", nTime - pnode->nLastRecv, pnode->GetId());
                     pnode->fDisconnect = true;
                 }
                 else if (pnode->nPingNonceSent && pnode->nPingUsecStart + WEBSOCKETS_TIMEOUT_INTERVAL * 1000000 < GetTimeMicros())
                 {
-                    LogPrintf("websocket ping timeout: %fs\n", 0.000001 * (GetTimeMicros() - pnode->nPingUsecStart));
+                    LogPrintf("websocket ping timeout: %fs peer=%d\n", 0.000001 * (GetTimeMicros() - pnode->nPingUsecStart), pnode->GetId());
                     pnode->fDisconnect = true;
                 }
 
@@ -1260,7 +1261,7 @@ static void ThreadWebSocketWaitForDisconnectedThreads()
                     try {
                         pnode->m_spWsEndpoint->close(pnode->m_hdl, websocketpp::close::status::no_status);
                     } catch (websocketpp::exception const & e) { // might be already close from remote site or on a error
-                        std::cout << __func__ << " close websocketpp::exception: " << e.what() << " (could be okay)" << std::endl;
+                        LogPrint("websockets", "%s close websocketpp::exception: %s (this may be normal if peer already remotely closed)\n", __func__, e.what());
                         LOCK(cs_vWsNodes);
                         RemoveWsNode(pnode); 
                     }
@@ -1559,7 +1560,7 @@ void StopWebSockets()
                 try {
                     pnode->m_spWsEndpoint->close(pnode->m_hdl, websocketpp::close::status::going_away);
                 } catch (websocketpp::exception const & e) { // might be already close from remote site or on a error
-                    std::cout << __func__ << " close websocketpp::exception: " << e.what() << " (could be okay)" << std::endl;
+                    LogPrint("websockets", "%s close websocketpp::exception: %s  (this may be normal)", __func__, e.what());
                 }
             }
         }

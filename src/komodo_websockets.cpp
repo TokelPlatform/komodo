@@ -1240,16 +1240,18 @@ static void ThreadWebSocketWaitForDisconnectedThreads()
                     LogPrint("websockets", "socket no message in first 60 seconds, %d %d from %d\n", pnode->nLastRecv != 0, pnode->nLastSend != 0, pnode->id);
                     pnode->fDisconnect = true;
                 }
+                /* in websockets we may not send messages for some time, we only do getwsaddr sometimes: 
                 else if (nTime - pnode->nLastSend > WEBSOCKETS_TIMEOUT_INTERVAL)
                 {
                     LogPrintf("websocket sending timeout: %is peer=%d\n", nTime - pnode->nLastSend, pnode->GetId());
                     pnode->fDisconnect = true;
-                }
+                } */
+                /* in websockets our getwsaddr requests may be not answered:
                 else if (nTime - pnode->nLastRecv > (pnode->nVersion > BIP0031_VERSION ? WEBSOCKETS_TIMEOUT_INTERVAL : 90*60))
                 {
                     LogPrintf("websocket receive timeout: %is peer=%d\n", nTime - pnode->nLastRecv, pnode->GetId());
                     pnode->fDisconnect = true;
-                }
+                } */
                 else if (pnode->nPingNonceSent && pnode->nPingUsecStart + WEBSOCKETS_TIMEOUT_INTERVAL * 1000000 < GetTimeMicros())
                 {
                     LogPrintf("websocket ping timeout: %fs peer=%d\n", 0.000001 * (GetTimeMicros() - pnode->nPingUsecStart), pnode->GetId());

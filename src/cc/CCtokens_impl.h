@@ -400,8 +400,14 @@ UniValue TokenTransferExtDest(const CPubKey &remotepk, CAmount txfee, uint256 to
                 }
             }
 
-			if (CCchange != 0)
-				mtx.vout.push_back(V::MakeTokensCC1vout(V::EvalCode(), CCchange, mypk));
+			if (CCchange != 0)  {
+                if (V::EvalCode() == EVAL_TOKENSV2 && 
+                    CCUpgrades::IsUpgradeActive(chainActive.LastTip()->GetHeight() + 1, CCUpgrades::GetUpgrades(), CCUpgrades::CCUPGID_MIXEDMODE_SUBVER_1))  {
+				    mtx.vout.push_back(V::MakeTokensCCMofNDestVout(V::EvalCode(), 0, CCchange, 1, {mypk.GetID()}));  // send change to R-address after the HF
+                }
+                else
+				    mtx.vout.push_back(V::MakeTokensCC1vout(V::EvalCode(), CCchange, mypk));
+            }
 
             // TODO maybe add also opret blobs form vintx
             // as now this TokenTransfer() allows to transfer only tokens (including NFTs) that are unbound to other cc

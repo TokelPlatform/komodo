@@ -1609,12 +1609,9 @@ UniValue CCDecodeMixedMode(const CC *cond)
 
             if (cc_typeId(cond) == CC_Secp256k1hash)  {
                 std::string fingerprintHex = HexStr(cond->fingerprint, cond->fingerprint + sizeof(uint160));
-                std::cerr << __func__ << " fingerprintHex=" << fingerprintHex << std::endl;
                 CKeyID keyid(uint160(vuint8_t(cond->fingerprint, cond->fingerprint + sizeof(uint160))));
                 CBitcoinAddress addr;
                 addr.Set(keyid);
-                std::cerr << __func__ << " keyid=" << keyid.ToString() << " addr=" << addr.ToString() << std::endl;
-
                 uCond.pushKV("destination", addr.ToString());
             }
             else  {

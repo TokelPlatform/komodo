@@ -508,6 +508,35 @@ bool SendWsMessages(CWsNode *pto, bool fTrickle)
 
     if (pto->nVersion == 0)
         return true;
+
+    //
+    // Message: ping on websockets
+    //
+    bool pingSend = false;
+    if (pto->fPingQueued) {
+        // RPC ping request by user
+        pingSend = true;
+    }
+    if (pto->nPingNonceSent == 0 && pto->nPingUsecStart + PING_INTERVAL * 1000000 < GetTimeMicros()) {
+        // Ping automatically sent as a latency probe & keepalive.
+        pingSend = true;
+    }
+    if (pingSend) {
+        uint64_t nonce = 0;
+        while (nonce == 0) {
+            GetRandBytes((unsigned char*)&nonce, sizeof(nonce));
+        }
+        pto->fPingQueued = false;
+        pto->nPingUsecStart = GetTimeMicros();
+        if (pto->nVersion > BIP0031_VERSION) {
+            pto->nPingNonceSent = nonce;
+            pto->PushMessage("ping", nonce);
+        } else {
+            // Peer is too old to support ping command with nonce, pong will never arrive.
+            pto->nPingNonceSent = 0;
+            pto->PushMessage("ping");
+        }
+    }
         
     // Address refresh broadcast
     static int64_t nLastRebroadcast;

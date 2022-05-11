@@ -152,13 +152,11 @@ def run_tokens_create(rpc1, rpc2, rpc3):
         call_token_rpc_send_tx(rpc3, "token"+v+"transfer", '', nftf7id3, pubkey1, str(1))
         call_token_rpc_send_tx(rpc3, "token"+v+"transfer", '', nftf7id4, pubkey1, str(1))
 
-
-        '''
         # test tokenlist:
         check_tokenlist(rpc1, v, [tokenid1, tokenid2, nft00id1, nft00id2, nftf7id1, nftf7id2, nftf7id3, nftf7id4])
         # test tokenallbalances:
         check_tokenallbalances(rpc1, v, {tokenid1: 100, tokenid2: 1000_0000, nft00id1: 1, nft00id2: 1, nftf7id1: 1, nftf7id2: 1, nftf7id3: 1, nftf7id4: 1} )
-
+        
         # first try transfer tokens to a pk and back, then run assets tests
         print("starting transfer tests for tokenid version=" + v + "...")
         run_transfers(rpc1, rpc2, v, tokenid1, tokenid2, 10)
@@ -170,7 +168,7 @@ def run_tokens_create(rpc1, rpc2, rpc3):
         run_transfers(rpc1, rpc2, v, nftf7id1, nftf7id2, 1)
         print("token transfers tests finished okay!")
         time.sleep(3)
-        '''
+
 
         # assets cc tests:
         print("starting assets tests for tokenid1 version=" + v + "...")
@@ -189,7 +187,7 @@ def run_tokens_create(rpc1, rpc2, rpc3):
         run_assets_expired_orders(rpc1, rpc2, v, tokenid1, 10, 8, 0.0001, False)
         print("assets tests finished okay!")
         
-        '''
+
         if v == "v2" :  # MofN supported for tokens cc v2 only
             print("running MofN tests for tokens v2:")
             print("starting MofN tests for tokenid1...")
@@ -199,7 +197,7 @@ def run_tokens_create(rpc1, rpc2, rpc3):
             print("starting MofN tests for nftf7id1...")
             run_MofN_transfers(rpc1, rpc2, rpc3, nftf7id1, 1)   
             print("token MofN transfer tests finished okay!")
-        '''
+        
     
 
     print("all token/assets tests finished okay!")

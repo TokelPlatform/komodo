@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "version.h"
+#include "komodo_defs.h"
 
 namespace CCUpgrades  {
 
@@ -34,7 +35,7 @@ namespace CCUpgrades  {
     const int64_t CCMIXEDMODE_SUBVER_1_DIMXY28_HEIGHT = 100000000;  // TBD
     const int64_t CCMIXEDMODE_SUBVER_1_DIMXY32_HEIGHT = 100000000;  // TBD
     const int64_t CCMIXEDMODE_SUBVER_1_TKLTEST2_HEIGHT = 89940;  // approx 17 May 2022 10:00a.m. UTC
-    const int64_t CCMIXEDMODE_SUBVER_1_TOKEL_TIMESTAMP = 1655212904; // test 14 June 2022, to be actualised
+    const int64_t CCMIXEDMODE_SUBVER_1_TOKEL_TIMESTAMP = nS6Timestamp; // bound to annual NN S6 update
     const int64_t CCMIXEDMODE_SUBVER_1_DIMXY33_TIMESTAMP = 1653064202; // test HF 20 May 2022
 
     // latest protocol version:

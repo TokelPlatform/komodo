@@ -1701,6 +1701,7 @@ void komodo_args(char *argv0)
     std::string name,addn,hexstr,symbol; char *dirname,fname[512],arg0str[64],magicstr[9]; uint8_t magic[4],extrabuf[32756],disablebits[32],*extraptr=0;
     FILE *fp; uint64_t val; uint16_t port, dest_rpc_port; int32_t i,nonz=0,baseid,len,n,extralen = 0; uint64_t ccenables[256], ccEnablesHeight[512] = {0}; CTransaction earlytx; uint256 hashBlock;
 
+    memset(extrabuf, 0, sizeof(extrabuf));
     std::string ntz_dest_path;
     ntz_dest_path = GetArg("-notary", "");
     IS_KOMODO_NOTARY = ntz_dest_path == "" ? 0 : 1;
@@ -1883,6 +1884,7 @@ void komodo_args(char *argv0)
         fprintf(stderr,"ASSETCHAINS_SUPPLY %llu\n",(long long)ASSETCHAINS_SUPPLY);
         
         ASSETCHAINS_COMMISSION = GetArg("-ac_perc",0);
+        memset(ASSETCHAINS_OVERRIDE_PUBKEY33, 0, sizeof(ASSETCHAINS_OVERRIDE_PUBKEY33));
         ASSETCHAINS_OVERRIDE_PUBKEY = GetArg("-ac_pubkey","");
         ASSETCHAINS_SCRIPTPUB = GetArg("-ac_script","");
         ASSETCHAINS_BEAMPORT = GetArg("-ac_beam",0);

@@ -24,7 +24,7 @@
  * network protocol versioning
  */
 
-static const int PROTOCOL_VERSION = 170009 + 2;  // Tokel HF June 2023
+static const int PROTOCOL_VERSION = 170009 + 3;  // Tokel HF October 2024
 
 //! initial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 209;

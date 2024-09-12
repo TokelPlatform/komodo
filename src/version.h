@@ -22,9 +22,12 @@
 
 /**
  * network protocol versioning
+ * Only need to increment BASE_PROTOCOL_VERSION at each season's HF
+ * BASE_PROTOCOL_VERSION should be set to the PREVIOUS HF version
+ * 170011 = Tokel HF 2023 | 1700011 + 1 = 170012 = Tokel HF 2024
  */
-
-static const int PROTOCOL_VERSION = 170009 + 3;  // Tokel HF October 2024
+static const int BASE_PROTOCOL_VERSION = 170011;
+static const int PROTOCOL_VERSION = BASE_PROTOCOL_VERSION + 1;
 
 //! initial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 209;
@@ -33,8 +36,9 @@ static const int INIT_PROTO_VERSION = 209;
 static const int GETHEADERS_VERSION = 31800;
 
 //! disconnect from peers older than this proto version
-static const int MIN_PEER_PROTO_VERSION = 170009 + 2; // Tokel HF October 2024. Make sure 2023 Version still is connected otherwise during transition time no connections found
-static const int STAKEDMIN_PEER_PROTO_VERSION = 170009 + 2; // Tokel HF October 2024.  Make sure 2023 Version still is connected
+// Make sure previous and current version can still connect at time of fork.
+static const int MIN_PEER_PROTO_VERSION = BASE_PROTOCOL_VERSION;
+static const int STAKEDMIN_PEER_PROTO_VERSION = BASE_PROTOCOL_VERSION;
 
 //! nTime field added to CAddress, starting with this version;
 //! if possible, avoid requesting addresses nodes older than this

@@ -24,7 +24,7 @@
  * network protocol versioning
  * Only need to increment BASE_PROTOCOL_VERSION at each season's HF
  * BASE_PROTOCOL_VERSION should be set to the PREVIOUS HF version
- * 170011 = Tokel HF 2023 | 1700011 + 1 = 170012 = Tokel HF 2024
+ * 170011 = Tokel HF 2023 | 170011 + 1 = 170012 = Tokel HF 2024
  */
 static const int BASE_PROTOCOL_VERSION = 170011;
 static const int PROTOCOL_VERSION = BASE_PROTOCOL_VERSION + 1;

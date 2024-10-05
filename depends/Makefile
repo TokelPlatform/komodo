@@ -1,11 +1,12 @@
 .NOTPARALLEL :
 
 SOURCES_PATH ?= $(BASEDIR)/sources
+WORK_PATH = $(BASEDIR)/work
 BASE_CACHE ?= $(BASEDIR)/built
 SDK_PATH ?= $(BASEDIR)/SDKs
 NO_WALLET ?=
 NO_UPNP ?=
-FALLBACK_DOWNLOAD_PATH ?= https://supernet/depends-sources
+FALLBACK_DOWNLOAD_PATH ?= https://media.githubusercontent.com/media/DigitalPrice/depends-sources/main/
 
 BUILD ?= $(shell ./config.guess)
 HOST ?= $(BUILD)
@@ -28,9 +29,9 @@ else
 release_type=release
 endif
 
-base_build_dir=$(BASEDIR)/work/build
-base_staging_dir=$(BASEDIR)/work/staging
-base_download_dir=$(BASEDIR)/work/download
+base_build_dir=$(BASEDIR)/build
+base_staging_dir=$(BASEDIR)/staging
+base_download_dir=$(BASEDIR)/download
 canonical_host:=$(shell ./config.sub $(HOST))
 build:=$(shell ./config.sub $(BUILD))
 
@@ -140,6 +141,12 @@ check-sources:
 $(host_prefix)/share/config.site: check-packages
 
 check-packages: check-sources
+
+clean-all: clean
+	@rm -rf $(SOURCES_PATH) x86_64* i686* mips* arm* aarch64*
+
+clean:
+	@rm -rf $(WORK_PATH) $(BASE_CACHE) $(BUILD)
 
 install: check-packages $(host_prefix)/share/config.site
 
